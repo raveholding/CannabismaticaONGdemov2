@@ -5,11 +5,19 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
-  var NAV = [
-    ['inicio', 'Inicio', 'home'], ['pacientes', 'Pacientes', 'users'], ['dispensaciones', 'Dispensaciones', 'flask'],
-    ['aportes', 'Aportes', 'heart'], ['reprocann', 'REPROCANN', 'shield'], ['trazabilidad', 'Trazabilidad', 'chart'], ['ajustes', 'Ajustes', 'gear']
+  var NAV = CM.NAV = [
+    ['inicio', 'Inicio', 'home', 'inicio'], ['pacientes', 'Pacientes', 'users', 'pacientes'], ['dispensaciones', 'Dispensaciones', 'flask', 'dispensaciones'],
+    ['aportes', 'Aportes', 'heart', 'aportes'], ['reprocann', 'REPROCANN', 'shield', 'reprocann'], ['trazabilidad', 'Trazabilidad', 'chart', 'trazabilidad'],
+    ['-', 'Gestión'],
+    ['dashboard', 'Dashboard', 'chart', 'dashboard'], ['caja', 'Caja', 'cash', 'caja'], ['cierre', 'Arqueo y cierre', 'lock', 'cierre'], ['cajas-cerradas', 'Cajas cerradas', 'archive', 'cerradas'],
+    ['inventario', 'Inventario', 'box', 'inventario'], ['fidelizacion', 'Fidelización', 'star', 'fidelizacion'], ['personal', 'Personal y fichaje', 'clock', 'personal'], ['tareas', 'Tareas y organigrama', 'tasks', 'tareas'],
+    ['-', 'Comunidad'],
+    ['menu-publico', 'Menú público', 'globe', 'menu'],
+    ['-', 'Sistema'],
+    ['nube', 'Nube', 'cloud', 'nube'], ['perifericos', 'Periféricos y ticket', 'plug', 'perifericos'], ['importexport', 'Importar / Exportar', 'swap', 'importexport'], ['integraciones', 'Integraciones', 'link', 'integraciones'],
+    ['usuarios', 'Usuarios y permisos', 'key', 'usuarios'], ['auditoria', 'Auditoría', 'doc', 'auditoria'], ['ajustes', 'Configuración', 'gear', 'ajustes']
   ];
-  var TITULOS = { inicio: 'Inicio', pacientes: 'Pacientes', paciente: 'Ficha del paciente', dispensaciones: 'Dispensaciones', aportes: 'Aportes voluntarios y Factura C', reprocann: 'REPROCANN', trazabilidad: 'Trazabilidad', ajustes: 'Ajustes' };
+  var TITULOS = CM.TITULOS = { inicio: 'Inicio', pacientes: 'Pacientes', paciente: 'Ficha del paciente', dispensaciones: 'Dispensaciones', aportes: 'Aportes voluntarios y Factura C', reprocann: 'REPROCANN', trazabilidad: 'Trazabilidad', ajustes: 'Configuración' };
 
   /* ---------- helpers de vista ---------- */
   function uTxt(u, n) {
@@ -43,24 +51,41 @@
   function yymm() { var h = CM.hoy(); return h.slice(2, 4) + h.slice(5, 7); }
 
   /* ---------- navegación y ruteo ---------- */
+  var MOD_DE_VISTA = { paciente: 'pacientes', 'cajas-cerradas': 'cerradas', 'menu-publico': 'menu' };
+  function modDe(v) { return MOD_DE_VISTA[v] || v; }
+  CM.visible = function (n) {
+    if (n[3] === 'inicio') return true;
+    if (CM.db.cfg.mods && CM.db.cfg.mods[n[3]] === false && ['usuarios', 'ajustes', 'auditoria'].indexOf(n[3]) < 0) return false;
+    return !CM.can || CM.can(n[3], 'ver');
+  };
   function renderNav(v) {
-    var cur = v === 'paciente' ? 'pacientes' : v;
-    $('#nav').innerHTML = NAV.map(function (n) {
-      return '<a href="#/' + n[0] + '"' + (n[0] === cur ? ' aria-current="page"' : '') + '>' + CM.icon(n[2]) + '<span>' + esc(n[1]) + '</span></a>';
-    }).join('');
+    var cur = v === 'paciente' ? 'pacientes' : v, out = '', pend = '';
+    NAV.forEach(function (n) {
+      if (n[0] === '-') { pend = '<div class="nav-h" aria-hidden="true">' + esc(n[1]) + '</div>'; return; }
+      if (!CM.visible(n)) return;
+      out += pend; pend = '';
+      out += '<a href="#/' + n[0] + '"' + (n[0] === cur ? ' aria-current="page"' : '') + '>' + CM.icon(n[2]) + '<span>' + esc(n[1]) + '</span></a>';
+    });
+    $('#nav').innerHTML = out;
+    var cu = $('#nav a[aria-current="page"]'); if (cu && cu.scrollIntoView) { try { cu.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* nada */ } }
   }
   function ruta() {
     var p = (g.location.hash || '#/inicio').replace(/^#\/?/, '').split('/');
     return { v: p[0] || 'inicio', a: decodeURIComponent(p[1] || '') };
   }
-  var VIEWS = {};
+  var VIEWS = CM.VIEWS = {};
   function render() {
     var r = ruta();
     if (!VIEWS[r.v]) r = { v: 'inicio', a: '' };
+    var pub = r.v === 'm' || r.v === 'acceso';
+    document.body.classList.toggle('pub', pub);
+    if (CM.rolSel) CM.rolSel();
     renderNav(r.v);
-    $('#main').innerHTML = VIEWS[r.v](r);
+    var denegado = !pub && r.v !== 'inicio' && r.v !== 'acceso' && CM.can && !CM.can(modDe(r.v), 'ver');
+    $('#main').innerHTML = denegado ? '<div class="card"><h1>Sin permiso</h1><p style="color:var(--mu)">El rol actual (' + esc(CM.ROLES[CM.db.cfg.rol] || '') + ') no tiene acceso a esta sección. Cambiá el rol en <a href="#/usuarios">Usuarios y permisos</a> o en el selector de la barra superior.</p></div>' : VIEWS[r.v](r);
     document.title = (TITULOS[r.v] || '') + ' · Cannabismatica I+D (demo)';
     hideSugg();
+    if (CM.afterRender) CM.afterRender(r);
   }
   CM.render = render;
   g.addEventListener('hashchange', function () { render(); g.scrollTo(0, 0); $('#main').focus({ preventScroll: true }); });
@@ -410,7 +435,7 @@
   VIEWS.ajustes = function () {
     var o = CM.db.ong, c = CM.db.cfg;
     var aud = CM.db.audit.slice(0, 40);
-    return '<div class="page-h"><div><h1>Ajustes</h1><p>Datos de la ONG, reglas de la demo y auditoría.</p></div></div>' +
+    return '<div class="page-h"><div><h1>Configuración</h1><p>Datos de la ONG, reglas de la demo y módulos activos. La bitácora está en <a href="#/auditoria">Auditoría</a>.</p></div></div>' +
       '<form class="card f" data-form="ajustes" autocomplete="off"><h2>Datos de la ONG</h2><div class="f f2">' +
       fl('Nombre de la ONG', '<input class="in" name="nombre" value="' + esc(o.nombre) + '" required>') + fl('Domicilio', '<input class="in" name="domicilio" value="' + esc(o.domicilio) + '">') +
       fl('Correo', '<input class="in" name="email" type="email" value="' + esc(o.email) + '">') + fl('Instagram', '<input class="in" name="instagram" value="' + esc(o.instagram) + '">') +
@@ -420,7 +445,7 @@
       '<h2 style="margin-top:6px">Reglas de la dispensación</h2><label class="chk"><input type="checkbox" name="bloq"' + (c.bloquearVencido ? ' checked' : '') + '><span>Bloquear dispensaciones si el REPROCANN de la ONG o del paciente está vencido</span></label>' +
       fl('Tope mensual de flores por paciente, en gramos (opcional; el valor lo define el equipo médico)', '<input class="in num" name="tope" inputmode="decimal" placeholder="Sin tope" value="' + esc(c.topeMensualG) + '" style="max-width:260px">') +
       '<p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar ajustes</button></div></form>' +
-      '<section class="card" style="margin-top:14px"><h2>Auditoría (últimos movimientos)</h2><div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="csv-aud">' + CM.icon('dl') + 'Exportar CSV</button></div>' + '<div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>' + aud.map(function (a) { return '<tr><td>' + esc(CM.fmtFH(a.ts)) + '</td><td>' + esc(a.user) + '</td><td>' + esc(a.accion) + '</td><td>' + esc(a.detalle) + '</td></tr>'; }).join('') + '</tbody></table></div></section>' +
+      (CM.cfgExtra ? CM.cfgExtra() : '') +
       '<section class="card" style="margin-top:14px"><h2>Sobre esta demo</h2><ul style="margin:0;padding-left:20px;color:var(--mu)"><li>Todos los pacientes y movimientos son <b>ficticios</b> y se guardan sólo en este navegador (no viajan a ningún servidor).</li><li>La Factura C es una <b>simulación</b> sin validez fiscal: no se conecta con ARCA.</li><li>Los enlaces a Drive de la demo apuntan a Google Drive en general; en el sistema real cada paciente tiene sus dos carpetas.</li><li>Normativa (Ley 27.350, vigencias del REPROCANN, exención de la ONG) <b>[VERIFICAR con asesor legal y fuentes oficiales]</b>.</li></ul>' +
       '<div class="row" style="margin-top:14px"><button class="btn bad" data-act="reset-demo">' + CM.icon('undo') + 'Restablecer datos de ejemplo</button></div></section>';
   };
@@ -888,8 +913,13 @@
     CM.audit('Ajuste de stock', l.id + ' · ' + (signo > 0 ? '+' : '-') + cant + ' · ' + motivo); CM.save(); CM.modal.close(true); render(); CM.toast('Ajuste registrado.');
   };
 
-  /* ---------- arranque ---------- */
-  CM.init();
-  if (!g.location.hash) g.location.hash = '#/inicio';
-  render();
+  /* ---------- utilidades para los módulos de gestión ---------- */
+  CM.U = { $: $, $$: $$, fl: fl, flr: flr, opt: opt, fail: fail, tablaVacia: tablaVacia, repPill: repPill, repDetalle: repDetalle, nombreCorto: nombreCorto, nombreDe: nombreDe, cantTxt: cantTxt, uTxt: uTxt, iniciales: iniciales, telWa: telWa, hideSugg: hideSugg };
+
+  /* ---------- arranque (lo dispara js/boot.js cuando cargaron todos los módulos) ---------- */
+  CM.boot = function () {
+    CM.init();
+    if (!g.location.hash) g.location.hash = '#/inicio';
+    render();
+  };
 })(window);
