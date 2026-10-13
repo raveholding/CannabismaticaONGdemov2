@@ -127,10 +127,9 @@
   /* ===================================================================
      IMPORTAR / EXPORTAR
      =================================================================== */
-  CM.imp = { paso: 1, nombre: '', head: [], rows: [], map: {}, dup: 'actualizar', msg: '', prueba: null };
   var EXPORTS = [
     ['pacientes', 'Pacientes', true], ['disp', 'Dispensaciones', false], ['aportes', 'Aportes voluntarios', false], ['comps', 'Comprobantes simulados', false], ['lotes', 'Lotes y stock', false], ['movs', 'Movimientos de stock', false],
-    ['cajas', 'Cajas cerradas', false], ['personal', 'Personal', true], ['fichas', 'Fichadas', false], ['sellos', 'Sellos', false], ['memb', 'Membresías', false], ['insumos', 'Insumos', false]
+    ['cajas', 'Cajas cerradas', false], ['menuitems', 'Talleres y servicios del menú', false], ['personal', 'Personal', true], ['fichas', 'Fichadas', false], ['sellos', 'Sellos', false], ['memb', 'Membresías', false], ['insumos', 'Insumos', false]
   ];
   function m2(v) { return (v / 100).toFixed(2).replace('.', ','); }
   function datosExport(k) {
@@ -147,6 +146,7 @@
       case 'fichas': return [['Persona', 'Fecha', 'Tipo', 'Fecha y hora', 'Metodo'], db.fichas.map(function (x) { return [x.emp, x.fecha, x.tipo, x.ts, x.metodo]; })];
       case 'sellos': return [['Id', 'Fecha', 'DNI', 'Tipo', 'Cantidad', 'Motivo'], db.sellos.map(function (s) { return [s.id, s.fecha, s.dni, s.tipo, s.cant, s.motivo]; })];
       case 'memb': return [['Id', 'DNI', 'Plan', 'Desde', 'Pagada hasta', 'Estado'], db.membresias.map(function (m) { return [m.id, m.dni, m.plan, m.desde, m.pagadoHasta, CM.estadoMemb(m)]; })];
+      case 'menuitems': return [['Nombre', 'Rubro', 'Descripcion', 'Aporte sugerido', 'Name', 'Description', 'Duracion', 'Incluye'], db.menu.draft.items.map(function (i) { return [i.es.n, i.cat, i.es.d, m2(i.cent), i.en ? i.en.n : '', i.en ? i.en.d : '', i.dur ? i.dur.es : '', i.inc ? i.inc.es.split('\n').join('; ') : '']; })];
       default: return [['Id', 'Insumo', 'Unidad', 'Minimo'], db.insumos.map(function (i) { return [i.id, i.n, i.unidad, i.min]; })];
     }
   }
@@ -160,8 +160,7 @@
   CM.acts['exp-ok'] = function (t) {
     var k = t.getAttribute('data-v'), d = datosExport(k); CM.audit('Exportación', k + ' · ' + d[1].length + ' filas · datos personales'); CM.save(); CM.modal.close(true); CM.descargar(k + '_' + CM.hoy() + '.csv', CM.csv(d[0], d[1]));
   };
-  var CAMPOS = [['dni', 'DNI', true, ['dni', 'documento', 'nro documento', 'numero de documento']], ['nombre', 'Nombre y apellido', true, ['nombre', 'nombre y apellido', 'apellido y nombre', 'paciente', 'socio']], ['tel', 'Teléfono', false, ['telefono', 'tel', 'celular', 'whatsapp', 'movil']], ['email', 'Correo', false, ['email', 'correo', 'mail', 'e-mail']], ['nac', 'Nacimiento', false, ['nacimiento', 'fecha de nacimiento', 'fecha nac', 'nac']], ['dir', 'Domicilio', false, ['domicilio', 'direccion']], ['cons', 'Consentimiento (Sí/No)', false, ['consentimiento', 'acepta', 'consiente']]];
-  CM.acts['imp-plantilla'] = function () { CM.descargar('plantilla_pacientes.csv', CM.csv(['DNI', 'Nombre y apellido', 'Telefono', 'Email', 'Fecha de nacimiento', 'Domicilio', 'Consentimiento'], [['99000100', 'Ejemplo Uno', '3875000100', 'ejemplo1@example.com', '15/03/1980', 'Salta, Capital', 'Si']])); };
+  var CAMPOS_PAC = [['dni', 'DNI', true, ['dni', 'documento', 'nro documento', 'numero de documento']], ['nombre', 'Nombre y apellido', true, ['nombre', 'nombre y apellido', 'apellido y nombre', 'paciente', 'socio']], ['tel', 'Teléfono', false, ['telefono', 'tel', 'celular', 'whatsapp', 'movil']], ['email', 'Correo', false, ['email', 'correo', 'mail', 'e-mail']], ['nac', 'Nacimiento', false, ['nacimiento', 'fecha de nacimiento', 'fecha nac', 'nac']], ['dir', 'Domicilio', false, ['domicilio', 'direccion']], ['cons', 'Consentimiento (Sí/No)', false, ['consentimiento', 'acepta', 'consiente']]];
   function fechaISO(s) {
     s = String(s || '').trim(); if (!s) return '';
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) || null, y, mo, d;
@@ -172,48 +171,189 @@
     var t = new Date(Date.UTC(y, mo - 1, d)); if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) return null;
     var iso = t.toISOString().slice(0, 10); return iso > CM.hoy() ? null : iso;
   }
+  function numAR(s) { s = String(s == null ? '' : s).trim(); if (!s) return null; var v = CM.parseCant ? CM.parseCant(s) : parseFloat(s.replace(',', '.')); return isNaN(v) ? NaN : v; }
+  function catMenu(txt) {
+    var d = CM.db.menu.draft, n = CM.norm(txt || ''); if (!n) return 'servicios';
+    var c = d.cats.filter(function (x) { return CM.norm(x.id) === n || CM.norm(x.es) === n || CM.norm(x.en) === n; })[0]; return c ? c.id : null;
+  }
+  function proxId(pref, arr) { var mx = 0; arr.forEach(function (x) { var m = new RegExp('^' + pref + '(\\d+)$').exec(x.id); if (m) mx = Math.max(mx, +m[1]); }); return pref + (mx + 1); }
+  /* cada entidad define sus columnas, validación, alta/actualización y reversión */
+  var ENT = {
+    pacientes: {
+      label: 'Pacientes', unidad: 'paciente(s)', perm: 'importexport', personal: true,
+      campos: CAMPOS_PAC, plantilla: [['DNI', 'Nombre y apellido', 'Telefono', 'Email', 'Fecha de nacimiento', 'Domicilio', 'Consentimiento'], [['99000100', 'Ejemplo Uno', '3875000100', 'ejemplo1@example.com', '15/03/1980', 'Salta, Capital', 'Si']]],
+      parse: function (g1) {
+        var er = [], dni = CM.soloDigitos(g1('dni')), nom = g1('nombre').replace(/\s+/g, ' '), tel = CM.soloDigitos(g1('tel')), nac = fechaISO(g1('nac')), em = g1('email');
+        if (dni.length < 6 || dni.length > 9) er.push('DNI inválido'); if (nom.length < 3) er.push('Falta el nombre');
+        if (g1('tel') && (tel.length < 8 || tel.length > 13)) er.push('Teléfono inválido');
+        if (g1('nac') && nac === null) er.push('Fecha de nacimiento inválida');
+        if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) er.push('Correo inválido');
+        return { er: er, id: dni, o: { dni: dni, nombre: nom, tel: tel, email: em, nac: nac || '', dir: g1('dir'), cons: /^(si|sí|s|1|true|yes|x)$/i.test(g1('cons')) } };
+      },
+      existe: function (id) { return !!CM.paciente(id); },
+      snap: function (id) { return JSON.parse(JSON.stringify(CM.paciente(id))); },
+      crear: function (o) { CM.db.pacientes[o.dni] = { dni: o.dni, nombre: o.nombre, nac: o.nac, tel: o.tel, email: o.email, dir: o.dir, cp: '', obraSocial: '', ocupacion: '', motivo: '', dudas: '', codSeg: '', historiaCompleta: false, consentimiento: '', consImport: o.cons ? 'Sí (según archivo)' : 'No', reprocann: { estado: 'sin', vence: null, carnet: false }, alta: CM.hoy(), drive1: '', drive2: '', importada: true }; return o.dni; },
+      actualizar: function (id, o) { var p = CM.paciente(id); if (o.nombre) p.nombre = o.nombre; if (o.tel) p.tel = o.tel; if (o.email) p.email = o.email; if (o.nac) p.nac = o.nac; if (o.dir) p.dir = o.dir; },
+      restaurar: function (id, prev) { CM.db.pacientes[id] = prev; },
+      quitar: function (id) { delete CM.db.pacientes[id]; },
+      bloqueo: function (id) { return CM.dispDe(id).length || CM.aportesDe(id).length ? 'ya hay dispensaciones o aportes de pacientes de este lote' : ''; },
+      aviso: function (a) { return 'Quienes no traen consentimiento quedan con consentimiento «No» (la opción más restrictiva: no reciben mensajes). Cantidad en esa situación: <b>' + a.nuevos.concat(a.act).filter(function (x) { return !x.cons; }).length + '</b> (Ley 25.326 <b>[VERIFICAR]</b>). Los pacientes importados quedan con la historia clínica pendiente.'; }
+    },
+    personal: {
+      label: 'Personal', unidad: 'persona(s)', perm: 'importexport', personal: true,
+      campos: [['nombre', 'Nombre y apellido', true, ['nombre', 'nombre y apellido', 'apellido y nombre', 'persona', 'empleado']], ['dni', 'DNI', true, ['dni', 'documento']], ['cargo', 'Cargo', false, ['cargo', 'puesto', 'funcion']], ['area', 'Área', false, ['area', 'sector', 'equipo']], ['tel', 'Teléfono', false, ['telefono', 'tel', 'celular', 'whatsapp']]],
+      plantilla: [['Nombre y apellido', 'DNI', 'Cargo', 'Area', 'Telefono'], [['Ejemplo Persona', '99100100', 'Voluntariado', 'Talleres y educación', '3875100100']]],
+      parse: function (g1) {
+        var er = [], dni = CM.soloDigitos(g1('dni')), nom = g1('nombre').replace(/\s+/g, ' ');
+        if (dni.length < 6 || dni.length > 9) er.push('DNI inválido'); if (nom.length < 3) er.push('Falta el nombre');
+        return { er: er, id: dni, o: { dni: dni, nombre: nom, cargo: g1('cargo'), area: g1('area'), tel: CM.soloDigitos(g1('tel')) } };
+      },
+      existe: function (id) { return CM.db.staff.some(function (e) { return e.dni === id; }); },
+      snap: function (id) { return JSON.parse(JSON.stringify(CM.db.staff.filter(function (e) { return e.dni === id; })[0])); },
+      crear: function (o) { var e = { id: proxId('E', CM.db.staff), nombre: o.nombre, dni: o.dni, cargo: o.cargo, area: o.area, tel: o.tel, activo: true }; CM.db.staff.push(e); return e.dni; },
+      actualizar: function (id, o) { var e = CM.db.staff.filter(function (x) { return x.dni === id; })[0]; if (o.nombre) e.nombre = o.nombre; if (o.cargo) e.cargo = o.cargo; if (o.area) e.area = o.area; if (o.tel) e.tel = o.tel; },
+      restaurar: function (id, prev) { var i = CM.db.staff.findIndex(function (x) { return x.dni === id; }); CM.db.staff[i] = prev; },
+      quitar: function (id) { CM.db.staff = CM.db.staff.filter(function (x) { return x.dni !== id; }); },
+      bloqueo: function (id) { var e = CM.db.staff.filter(function (x) { return x.dni === id; })[0]; return e && CM.db.fichas.some(function (f) { return f.emp === e.id; }) ? 'ya hay fichadas de personas de este lote' : ''; },
+      aviso: function () { return 'Las personas importadas quedan activas, sin tarjeta emitida (se emite desde Personal y fichaje).'; }
+    },
+    insumos: {
+      label: 'Insumos de inventario', unidad: 'insumo(s)', perm: 'inventario',
+      campos: [['nombre', 'Insumo', true, ['insumo', 'nombre', 'articulo', 'producto', 'descripcion']], ['unidad', 'Unidad', false, ['unidad', 'um']], ['min', 'Stock mínimo', false, ['minimo', 'stock minimo', 'min']], ['stock', 'Stock inicial', false, ['stock', 'cantidad', 'existencia', 'saldo', 'stock inicial']], ['rubro', 'Rubro de inventario', false, ['rubro', 'categoria', 'familia']]],
+      plantilla: [['Insumo', 'Unidad', 'Stock minimo', 'Stock inicial', 'Rubro'], [['Bolsas de papel', 'u', '50', '200', 'Material de talleres']]],
+      parse: function (g1) {
+        var er = [], nom = g1('nombre').replace(/\s+/g, ' '), mn = numAR(g1('min')), st = numAR(g1('stock'));
+        if (nom.length < 2) er.push('Falta el nombre del insumo');
+        if (mn !== null && (isNaN(mn) || mn < 0)) er.push('Stock mínimo inválido'); if (st !== null && (isNaN(st) || st < 0)) er.push('Stock inicial inválido');
+        return { er: er, id: CM.norm(nom), o: { nombre: nom, unidad: g1('unidad') || 'u', min: mn || 0, stock: st || 0, rubro: g1('rubro') } };
+      },
+      existe: function (id) { return CM.db.insumos.some(function (x) { return CM.norm(x.n) === id; }); },
+      snap: function (id) { return JSON.parse(JSON.stringify(CM.db.insumos.filter(function (x) { return CM.norm(x.n) === id; })[0])); },
+      crear: function (o) {
+        var rb = CM.db.irubros.filter(function (r) { return CM.norm(r.n) === CM.norm(o.rubro); })[0] || CM.db.irubros[0];
+        var x = { id: proxId('IN-', CM.db.insumos), rubro: rb.id, n: o.nombre, unidad: o.unidad, min: o.min, activo: true, importado: true }; CM.db.insumos.push(x);
+        if (o.stock > 0) CM.db.imovs.push({ id: CM.nextId('IM'), ins: x.id, fecha: CM.hoy(), ts: new Date().toISOString(), cant: o.stock, motivo: 'Saldo inicial (importación)', user: CM.db.cfg.operador, imp: true });
+        return CM.norm(o.nombre);
+      },
+      actualizar: function (id, o) { var x = CM.db.insumos.filter(function (y) { return CM.norm(y.n) === id; })[0]; if (o.unidad) x.unidad = o.unidad; if (o.min) x.min = o.min; },
+      restaurar: function (id, prev) { var i = CM.db.insumos.findIndex(function (y) { return CM.norm(y.n) === id; }); CM.db.insumos[i] = prev; },
+      quitar: function (id) { var x = CM.db.insumos.filter(function (y) { return CM.norm(y.n) === id; })[0]; if (!x) return; CM.db.imovs = CM.db.imovs.filter(function (m) { return m.ins !== x.id; }); CM.db.insumos = CM.db.insumos.filter(function (y) { return y !== x; }); },
+      bloqueo: function (id) { var x = CM.db.insumos.filter(function (y) { return CM.norm(y.n) === id; })[0]; return x && CM.db.imovs.some(function (m) { return m.ins === x.id && !m.imp; }) ? 'ya hay movimientos de stock de insumos de este lote' : ''; },
+      aviso: function () { return 'Si el rubro no existe, el insumo entra en el primer rubro de inventario. El stock inicial queda como movimiento «Saldo inicial (importación)».'; }
+    },
+    menu: {
+      label: 'Talleres, cursos y servicios del menú público', unidad: 'ítem(s) del menú', perm: 'menu',
+      campos: [['nombre', 'Nombre', true, ['nombre', 'titulo', 'actividad', 'servicio', 'taller', 'curso']], ['cat', 'Rubro del menú', false, ['rubro', 'categoria', 'tipo']], ['desc', 'Descripción', false, ['descripcion', 'detalle', 'texto']], ['aporte', 'Aporte sugerido ($)', false, ['aporte', 'aporte sugerido', 'importe', 'monto', 'contribucion']], ['nombreEn', 'Nombre (inglés)', false, ['name', 'nombre en', 'nombre ingles', 'english']], ['descEn', 'Descripción (inglés)', false, ['description', 'descripcion en', 'descripcion ingles']], ['dur', 'Duración', false, ['duracion']], ['inc', 'Qué incluye (separar con ;)', false, ['incluye', 'que incluye']]],
+      plantilla: [['Nombre', 'Rubro', 'Descripcion', 'Aporte sugerido', 'Name', 'Description', 'Duracion', 'Incluye'], [['Taller de ejemplo', 'Talleres', 'Descripción del taller', '5000', 'Example workshop', 'Workshop description', '2 horas', 'Material; Certificado']]],
+      parse: function (g1) {
+        var er = [], nom = g1('nombre').replace(/\s+/g, ' '), c = catMenu(g1('cat')), ap = g1('aporte') ? CM.parseMonto(g1('aporte')) : 0;
+        if (nom.length < 3) er.push('Falta el nombre'); if (c === null) er.push('Rubro del menú desconocido'); if (isNaN(ap) || ap < 0) er.push('Aporte inválido');
+        return { er: er, id: CM.norm(nom), o: { nombre: nom, cat: c, desc: g1('desc'), cent: ap || 0, nombreEn: g1('nombreEn'), descEn: g1('descEn'), dur: g1('dur'), inc: g1('inc') } };
+      },
+      existe: function (id) { return CM.db.menu.draft.items.some(function (x) { return CM.norm(x.es.n) === id; }); },
+      snap: function (id) { return JSON.parse(JSON.stringify(CM.db.menu.draft.items.filter(function (x) { return CM.norm(x.es.n) === id; })[0])); },
+      crear: function (o) {
+        var d = CM.db.menu.draft; d.items.push({ id: proxId('P', d.items), cat: o.cat, activo: true, cent: o.cent, es: { n: o.nombre, d: o.desc }, en: { n: o.nombreEn || o.nombre, d: o.descEn || o.desc }, dur: { es: o.dur, en: o.dur }, inc: { es: o.inc.split(';').map(function (z) { return z.trim(); }).filter(Boolean).join('\n'), en: o.inc.split(';').map(function (z) { return z.trim(); }).filter(Boolean).join('\n') } }); return CM.norm(o.nombre);
+      },
+      actualizar: function (id, o) { var x = CM.db.menu.draft.items.filter(function (y) { return CM.norm(y.es.n) === id; })[0]; if (o.desc) x.es.d = o.desc; if (o.cent) x.cent = o.cent; if (o.cat) x.cat = o.cat; if (o.nombreEn) x.en.n = o.nombreEn; if (o.descEn) x.en.d = o.descEn; },
+      restaurar: function (id, prev) { var a = CM.db.menu.draft.items, i = a.findIndex(function (y) { return CM.norm(y.es.n) === id; }); a[i] = prev; },
+      quitar: function (id) { var d = CM.db.menu.draft; d.items = d.items.filter(function (y) { return CM.norm(y.es.n) !== id; }); },
+      bloqueo: function (id) { var it = CM.db.menu.draft.items.filter(function (y) { return CM.norm(y.es.n) === id; })[0]; return it && CM.db.menu.pub.items.some(function (y) { return y.id === it.id; }) ? 'el ítem ya fue publicado: ocultalo desde Menú público' : ''; },
+      aviso: function () { return 'Los ítems importados entran al <b>borrador</b> del menú público: se ven recién cuando los publicás desde Administración → Menú público.'; }
+    }
+  };
+  function nuevoImp(ent) { return { paso: 1, ent: ent || 'pacientes', nombre: '', head: [], rows: [], map: {}, dup: 'actualizar', msg: '', prueba: null }; }
+  CM.imp = nuevoImp();
+  function E() { return ENT[CM.imp.ent] || ENT.pacientes; }
+  CM.acts['imp-plantilla'] = function () { var e = E(); CM.descargar('plantilla_' + CM.imp.ent + '.csv', CM.csv(e.plantilla[0], e.plantilla[1])); };
+  CM.forms['imp-ent'] = function (f) { CM.imp = nuevoImp(f.elements.ent.value); render(); };
   function analizar() {
-    var f = CM.imp, res = { nuevos: [], act: [], omit: [], err: [] }, vistos = {};
+    var f = CM.imp, e = E(), res = { nuevos: [], act: [], omit: [], err: [] }, vistos = {};
     f.rows.forEach(function (r, i) {
       var g1 = function (k) { var ix = f.map[k]; return ix === undefined || ix === '' ? '' : String(r[+ix] == null ? '' : r[+ix]).trim(); };
-      var dni = CM.soloDigitos(g1('dni')), nom = g1('nombre').replace(/\s+/g, ' '), tel = CM.soloDigitos(g1('tel')), nac = fechaISO(g1('nac')), em = g1('email'), n = i + 2;
-      var er = [];
-      if (dni.length < 6 || dni.length > 9) er.push('DNI inválido');
-      if (nom.length < 3) er.push('Falta el nombre');
-      if (g1('tel') && (tel.length < 8 || tel.length > 13)) er.push('Teléfono inválido');
-      if (g1('nac') && nac === null) er.push('Fecha de nacimiento inválida');
-      if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) er.push('Correo inválido');
-      if (dni && vistos[dni]) er.push('DNI repetido en el archivo');
-      if (er.length) { res.err.push({ n: n, dni: dni, e: er.join(', ') }); return; }
-      vistos[dni] = 1;
-      var cons = /^(si|sí|s|1|true|yes|x)$/i.test(g1('cons'));
-      var o = { dni: dni, nombre: nom, tel: tel, email: em, nac: nac || '', dir: g1('dir'), cons: cons };
-      if (CM.paciente(dni)) { if (f.dup === 'omitir') res.omit.push(o); else res.act.push(o); } else res.nuevos.push(o);
+      var p = e.parse(g1), n = i + 2;
+      if (!p.er.length && !p.id) p.er.push('Falta la clave de la fila');
+      if (!p.er.length && vistos[p.id]) p.er.push('Repetido dentro del archivo');
+      if (p.er.length) { res.err.push({ n: n, dni: p.id, e: p.er.join(', ') }); return; }
+      vistos[p.id] = 1; p.o._id = p.id;
+      if (e.existe(p.id)) { if (f.dup === 'omitir') res.omit.push(p.o); else res.act.push(p.o); } else res.nuevos.push(p.o);
     });
     return res;
   }
+  function filasLeidas(rows, nombre) {
+    var f = CM.imp, e = E(), hi = 0;
+    for (var i = 0; i < Math.min(rows.length, 10); i++) { if (rows[i].filter(function (c) { return String(c).trim(); }).length >= 2) { hi = i; break; } }
+    if (rows.length < 2) { f.msg = 'No encontré filas de datos en el archivo.'; render(); return; }
+    if (rows.length - hi - 1 > 20000) { f.msg = 'El archivo supera las 20.000 filas.'; render(); return; }
+    f.head = rows[hi].map(function (c) { return String(c == null ? '' : c); }); f.rows = rows.slice(hi + 1); f.nombre = nombre; f.msg = ''; f.prueba = null; f.map = {};
+    e.campos.forEach(function (c) { f.head.forEach(function (h, ix) { if (f.map[c[0]] === undefined && c[3].indexOf(CM.norm(h)) > -1) f.map[c[0]] = ix; }); });
+    f.paso = 2; render();
+  }
+  /* lector mínimo de .xlsx (zip + XML), sin librerías externas */
+  CM.leerXlsx = function (buf) {
+    var u = new Uint8Array(buf), dv = new DataView(buf), eocd = -1, i;
+    for (i = u.length - 22; i >= Math.max(0, u.length - 70000); i--) { if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; } }
+    if (eocd < 0) return Promise.reject(new Error('zip'));
+    var n = dv.getUint16(eocd + 10, true), off = dv.getUint32(eocd + 16, true), ent = {}, td = new TextDecoder();
+    for (i = 0; i < n; i++) {
+      if (dv.getUint32(off, true) !== 0x02014b50) break;
+      var met = dv.getUint16(off + 10, true), csz = dv.getUint32(off + 20, true), nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true), lo = dv.getUint32(off + 42, true);
+      ent[td.decode(u.subarray(off + 46, off + 46 + nl))] = { met: met, csz: csz, lo: lo }; off += 46 + nl + el + cl;
+    }
+    function leer(nombre) {
+      var x = ent[nombre]; if (!x) return Promise.resolve(null);
+      var ln = dv.getUint16(x.lo + 26, true), le = dv.getUint16(x.lo + 28, true), ini = x.lo + 30 + ln + le, dat = u.subarray(ini, ini + x.csz);
+      if (x.met === 0) return Promise.resolve(td.decode(dat));
+      if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('ds'));
+      var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(dat); w.close();
+      return new Response(ds.readable).arrayBuffer().then(function (b) { return td.decode(b); });
+    }
+    function xml(t) { return new DOMParser().parseFromString(t, 'application/xml'); }
+    var hojas = Object.keys(ent).filter(function (k) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(k); }).sort(function (a, b) { return parseInt(a.replace(/\D/g, ''), 10) - parseInt(b.replace(/\D/g, ''), 10); });
+    if (!hojas.length) return Promise.reject(new Error('hoja'));
+    return Promise.all([leer('xl/sharedStrings.xml'), leer(hojas[0])]).then(function (r) {
+      var ss = [];
+      if (r[0]) Array.prototype.forEach.call(xml(r[0]).getElementsByTagName('si'), function (si) { ss.push(Array.prototype.map.call(si.getElementsByTagName('t'), function (t) { return t.textContent; }).join('')); });
+      var rows = [];
+      Array.prototype.forEach.call(xml(r[1]).getElementsByTagName('row'), function (row) {
+        var arr = [];
+        Array.prototype.forEach.call(row.getElementsByTagName('c'), function (c) {
+          var ref = c.getAttribute('r') || '', col = 0, m = /^([A-Z]+)/.exec(ref); if (m) m[1].split('').forEach(function (ch) { col = col * 26 + ch.charCodeAt(0) - 64; });
+          var t = c.getAttribute('t'), v = c.getElementsByTagName('v')[0], val = '';
+          if (t === 's' && v) val = ss[+v.textContent] || ''; else if (t === 'inlineStr') val = Array.prototype.map.call(c.getElementsByTagName('t'), function (z) { return z.textContent; }).join(''); else if (v) val = v.textContent;
+          arr[(col || arr.length + 1) - 1] = val;
+        });
+        for (var k = 0; k < arr.length; k++) if (arr[k] === undefined) arr[k] = '';
+        rows.push(arr);
+      });
+      return rows;
+    });
+  };
   VIEWS.importexport = function () {
-    var f = CM.imp, db = CM.db;
-    var head = pageH('Importar / Exportar', 'Sacá tus datos en CSV (se abre directo en Excel) o traé pacientes desde otro sistema. Todo queda en la auditoría.');
-    var exp = '<section class="card"><h2>Exportar</h2><div class="row">' + EXPORTS.map(function (e) { return '<button class="btn sm" data-act="exp-uno" data-v="' + e[0] + '">' + CM.icon('dl') + esc(e[1]) + '</button>'; }).join('') + '</div><p class="hint">CSV separado por «;» con UTF-8. Las celdas que empiezan con =, +, - o @ se neutralizan para evitar inyección de fórmulas.</p></section>';
-    var paso = '';
+    var f = CM.imp, e = E(), db = CM.db;
+    var head = pageH('Importar / Exportar', 'Sacá tus datos en CSV (se abre directo en Excel) o traé datos desde otro sistema: CSV, Excel (.xlsx) o pegando desde una planilla. Todo queda en la auditoría.');
+    var exp = '<section class="card"><h2>Exportar</h2><div class="row">' + EXPORTS.map(function (x) { return '<button class="btn sm" data-act="exp-uno" data-v="' + x[0] + '">' + CM.icon('dl') + esc(x[1]) + '</button>'; }).join('') + '</div><p class="hint">CSV con punto y coma y UTF-8 (se abre directo en Excel). Las celdas que empiezan con = + - @ se neutralizan para evitar inyección de fórmulas.</p></section>';
+    var paso = '', cant = 0;
     if (f.paso === 1) {
-      paso = '<p style="color:var(--mu)">Subí un archivo <b>.csv</b> (separado por punto y coma, coma o tabulación; hasta 20.000 filas y 15 MB). Los archivos .xlsx todavía no se leen en la demo: guardalos como CSV desde Excel.</p><div class="row"><label class="btn pri" for="impFile" style="cursor:pointer">' + CM.icon('plus') + 'Elegir archivo CSV</label><input type="file" id="impFile" accept=".csv,text/csv,text/plain" class="sr"><button class="btn" data-act="imp-plantilla">' + CM.icon('dl') + 'Descargar plantilla</button></div>' + (f.msg ? '<div class="note bad" role="alert" style="margin-top:12px">' + esc(f.msg) + '</div>' : '');
+      paso = '<form data-form="imp-ent" class="row" style="margin-bottom:12px"><label class="fl" style="min-width:260px"><span>¿Qué querés importar?</span><select class="in" name="ent">' + Object.keys(ENT).map(function (k) { return opt(k, ENT[k].label, k === f.ent); }).join('') + '</select></label><button class="btn" type="submit">Elegir</button></form>' +
+        '<p style="color:var(--mu)">Subí un archivo <b>.csv</b> o <b>.xlsx</b> (hasta 20.000 filas y 15 MB), o pegá las filas copiadas desde Excel. La primera fila tiene que tener los títulos de las columnas.</p><div class="row"><label class="btn pri" for="impFile" style="cursor:pointer">' + CM.icon('plus') + 'Elegir archivo (CSV o Excel)</label><input type="file" id="impFile" accept=".csv,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="sr"><button class="btn" data-act="imp-plantilla">' + CM.icon('dl') + 'Descargar plantilla</button></div>' +
+        '<details style="margin-top:12px"><summary>Pegar desde Excel</summary><textarea class="in tall" id="impPaste" placeholder="Pegá acá las filas (con los títulos en la primera)"></textarea><div class="row" style="margin-top:8px"><button class="btn" data-act="imp-pegar">Usar lo pegado</button></div></details>' +
+        (f.msg ? '<div class="note bad" role="alert" style="margin-top:12px">' + esc(f.msg) + '</div>' : '');
     } else if (f.paso === 2) {
-      paso = '<p style="color:var(--mu)">Archivo: <b>' + esc(f.nombre) + '</b> · ' + f.rows.length + ' fila(s). Indicá qué columna corresponde a cada dato (se reconocieron las habituales).</p><form data-form="imp-map" class="f">' + CAMPOS.map(function (c) {
+      paso = '<p style="color:var(--mu)">Entidad: <b>' + esc(e.label) + '</b> · Archivo: <b>' + esc(f.nombre) + '</b> · ' + f.rows.length + ' fila(s). Indicá qué columna corresponde a cada dato (se reconocieron las habituales).</p><form data-form="imp-map" class="f">' + e.campos.map(function (c) {
         return fl(c[1] + (c[2] ? ' *' : ''), '<select class="in" name="m_' + c[0] + '">' + opt('', '— No importar —', f.map[c[0]] === undefined || f.map[c[0]] === '') + f.head.map(function (h, i) { return opt(String(i), h || ('Columna ' + (i + 1)), String(f.map[c[0]]) === String(i)); }).join('') + '</select>');
-      }).join('') + fl('Si el DNI ya existe', '<select class="in" name="dup">' + opt('actualizar', 'Actualizar los datos', f.dup === 'actualizar') + opt('omitir', 'Omitirlo (no tocar)', f.dup === 'omitir') + '</select>') + '<p class="err" role="alert" data-err></p><div class="row"><button class="btn" type="button" data-act="imp-volver">Volver</button><button class="btn pri" type="submit">Ver vista previa</button></div></form>';
+      }).join('') + fl('Si ya existe', '<select class="in" name="dup">' + opt('actualizar', 'Actualizar los datos', f.dup === 'actualizar') + opt('omitir', 'Omitirlo (no tocar)', f.dup === 'omitir') + '</select>') + '<p class="err" role="alert" data-err></p><div class="row"><button class="btn" type="button" data-act="imp-volver">Volver</button><button class="btn pri" type="submit">Ver vista previa</button></div></form>';
     } else {
-      var a = analizar();
+      var a = analizar(); cant = a.nuevos.length + a.act.length;
       paso = '<div class="grid g4"><div class="card kpi"><div class="l">Nuevos</div><div class="v">' + a.nuevos.length + '</div></div><div class="card kpi"><div class="l">A actualizar</div><div class="v">' + a.act.length + '</div></div><div class="card kpi"><div class="l">Omitidos</div><div class="v">' + a.omit.length + '</div></div><div class="card kpi"><div class="l">Con error</div><div class="v">' + a.err.length + '</div></div></div>' +
-        '<div class="note info" style="margin-top:12px">Quienes no traen consentimiento quedan con consentimiento «No» (la opción más restrictiva: no reciben mensajes). Cantidad en esa situación: <b>' + a.nuevos.concat(a.act).filter(function (x) { return !x.cons; }).length + '</b> (Ley 25.326 <b>[VERIFICAR]</b>). Los pacientes importados quedan con la historia clínica pendiente.</div>' +
-        (a.err.length ? '<h3 style="margin-top:14px">Errores por fila</h3><div class="tw"><table><thead><tr><th>Fila</th><th>DNI</th><th>Problema</th></tr></thead><tbody>' + a.err.slice(0, 20).map(function (e) { return '<tr><td>' + e.n + '</td><td>' + esc(e.dni) + '</td><td>' + esc(e.e) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
+        '<div class="note info" style="margin-top:12px">' + e.aviso(a) + '</div>' +
+        (a.err.length ? '<h3 style="margin-top:14px">Errores por fila</h3><div class="tw"><table><thead><tr><th>Fila</th><th>Clave</th><th>Problema</th></tr></thead><tbody>' + a.err.slice(0, 20).map(function (x) { return '<tr><td>' + x.n + '</td><td>' + esc(x.dni) + '</td><td>' + esc(x.e) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
         (f.prueba ? '<div class="note ok" style="margin-top:12px" role="status">' + esc(f.prueba) + '</div>' : '') +
-        '<div class="row" style="margin-top:14px"><button class="btn" data-act="imp-atras">Volver al mapeo</button><button class="btn" data-act="imp-probar">Probar (sin guardar)</button><button class="btn pri" data-act="imp-ok"' + (a.nuevos.length + a.act.length ? '' : ' disabled') + '>Importar ' + (a.nuevos.length + a.act.length) + ' paciente(s)</button></div>';
+        '<div class="row" style="margin-top:14px"><button class="btn" data-act="imp-atras">Volver al mapeo</button><button class="btn" data-act="imp-probar">Probar (sin guardar)</button><button class="btn pri" data-act="imp-ok"' + (cant ? '' : ' disabled') + '>Importar ' + cant + ' ' + esc(e.unidad) + '</button></div>';
     }
     var lote = db.imports[db.imports.length - 1];
-    return head + exp + '<section class="card" style="margin-top:14px"><div class="row sp"><h2>Importar pacientes · paso ' + f.paso + ' de 3</h2>' + (f.paso > 1 ? '<button class="btn sm" data-act="imp-reset">Empezar de nuevo</button>' : '') + '</div>' + paso + '</section>' +
-      '<section class="card" style="margin-top:14px"><h2>Lotes importados</h2>' + (db.imports.length ? '<div class="tw"><table><thead><tr><th>Fecha</th><th>Archivo</th><th class="n">Nuevos</th><th class="n">Actualizados</th><th>Estado</th></tr></thead><tbody>' + db.imports.slice().reverse().map(function (l) { return '<tr><td>' + esc(CM.fmtFH(l.ts)) + '</td><td>' + esc(l.archivo) + '</td><td class="n">' + l.nuevos.length + '</td><td class="n">' + Object.keys(l.prev).length + '</td><td>' + (l.deshecho ? '<span class="pill p-mu">Deshecho</span>' : '<span class="pill p-ok">Aplicado</span>') + '</td></tr>'; }).join('') + '</tbody></table></div>' + (lote && !lote.deshecho ? '<div class="row" style="margin-top:12px"><button class="btn bad" data-act="imp-deshacer">Deshacer el último lote</button></div>' : '') : '<div class="empty">Todavía no se importó nada.</div>') + '<p class="hint">Importar el mismo archivo dos veces no duplica pacientes. El lote se puede deshacer mientras no haya dispensaciones ni aportes de los pacientes nuevos.</p></section>';
+    return head + exp + '<section class="card" style="margin-top:14px"><div class="row sp"><h2>Importar ' + esc(e.label.toLowerCase()) + ' · paso ' + f.paso + ' de 3</h2>' + (f.paso > 1 ? '<button class="btn sm" data-act="imp-reset">Empezar de nuevo</button>' : '') + '</div>' + paso + '</section>' +
+      '<section class="card" style="margin-top:14px"><h2>Lotes importados</h2>' + (db.imports.length ? '<div class="tw"><table><thead><tr><th>Fecha</th><th>Qué</th><th>Archivo</th><th class="n">Nuevos</th><th class="n">Actualizados</th><th>Estado</th></tr></thead><tbody>' + db.imports.slice().reverse().map(function (l) { return '<tr><td>' + esc(CM.fmtFH(l.ts)) + '</td><td>' + esc((ENT[l.ent || 'pacientes'] || {}).label || '') + '</td><td>' + esc(l.archivo) + '</td><td class="n">' + l.nuevos.length + '</td><td class="n">' + Object.keys(l.prev).length + '</td><td>' + (l.deshecho ? '<span class="pill p-mu">Deshecho</span>' : '<span class="pill p-ok">Aplicado</span>') + '</td></tr>'; }).join('') + '</tbody></table></div>' + (lote && !lote.deshecho ? '<div class="row" style="margin-top:12px"><button class="btn bad" data-act="imp-deshacer">Deshacer el último lote</button></div>' : '') : '<div class="empty">Todavía no se importó nada.</div>') + '<p class="hint">Importar el mismo archivo dos veces no duplica registros. El lote se puede deshacer mientras no haya movimientos posteriores que dependan de él.</p></section>';
   };
   document.addEventListener('change', function (ev) {
     if (ev.target.id !== 'impFile' || !ev.target.files[0]) return;
@@ -223,51 +363,54 @@
     var fr = new FileReader();
     fr.onload = function () {
       var buf = new Uint8Array(fr.result), txt;
-      if (buf[0] === 0x50 && buf[1] === 0x4b) { f.msg = 'Eso parece un archivo .xlsx. La demo todavía no lo lee: guardalo como CSV desde Excel y subilo de nuevo.'; render(); return; }
-      try { txt = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { txt = new TextDecoder('windows-1252').decode(buf); }
-      var p = CM.parseCSV(txt), rows = p.rows;
-      var hi = 0; for (var i = 0; i < Math.min(rows.length, 10); i++) { if (rows[i].filter(function (c) { return String(c).trim(); }).length >= 2) { hi = i; break; } }
-      if (rows.length < 2) { f.msg = 'No encontré filas de datos en el archivo.'; render(); return; }
-      if (rows.length - hi - 1 > 20000) { f.msg = 'El archivo supera las 20.000 filas.'; render(); return; }
-      f.head = rows[hi]; f.rows = rows.slice(hi + 1); f.nombre = file.name; f.msg = ''; f.prueba = null; f.map = {};
-      CAMPOS.forEach(function (c) { f.head.forEach(function (h, ix) { if (f.map[c[0]] === undefined && c[3].indexOf(CM.norm(h)) > -1) f.map[c[0]] = ix; }); });
-      f.paso = 2; render();
+      if (buf[0] === 0x50 && buf[1] === 0x4b) {
+        CM.leerXlsx(fr.result).then(function (rows) { filasLeidas(rows, file.name); }, function () { f.msg = 'No pude leer ese archivo Excel. Probá guardarlo de nuevo como .xlsx o como CSV.'; render(); });
+        return;
+      }
+      try { txt = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e2) { txt = new TextDecoder('windows-1252').decode(buf); }
+      filasLeidas(CM.parseCSV(txt).rows, file.name);
     };
     fr.readAsArrayBuffer(file);
   });
+  CM.acts['imp-pegar'] = function () {
+    if (!CM.need('importexport', 'admin')) return;
+    var t = document.getElementById('impPaste'); if (!t || !t.value.trim()) { CM.toast('Pegá primero las filas copiadas.', true); return; }
+    if (t.value.length > 15 * 1024 * 1024) { CM.imp.msg = 'Lo pegado supera los 15 MB.'; render(); return; }
+    filasLeidas(CM.parseCSV(t.value).rows, 'Pegado desde Excel');
+  };
   CM.forms['imp-map'] = function (f) {
-    var im = CM.imp; im.map = {};
-    CAMPOS.forEach(function (c) { var v = f.elements['m_' + c[0]].value; if (v !== '') im.map[c[0]] = +v; });
+    var im = CM.imp, e = E(); im.map = {};
+    e.campos.forEach(function (c) { var v = f.elements['m_' + c[0]].value; if (v !== '') im.map[c[0]] = +v; });
     im.dup = f.elements.dup.value;
-    if (im.map.dni === undefined) return fail(f, 'm_dni', 'Indicá la columna del DNI.');
-    if (im.map.nombre === undefined) return fail(f, 'm_nombre', 'Indicá la columna del nombre.');
+    var falta = e.campos.filter(function (c) { return c[2] && im.map[c[0]] === undefined; })[0];
+    if (falta) return fail(f, 'm_' + falta[0], 'Indicá la columna de «' + falta[1] + '».');
     im.paso = 3; im.prueba = null; render();
   };
   CM.acts['imp-volver'] = function () { CM.imp.paso = 1; render(); };
   CM.acts['imp-atras'] = function () { CM.imp.paso = 2; render(); };
-  CM.acts['imp-reset'] = function () { CM.imp = { paso: 1, nombre: '', head: [], rows: [], map: {}, dup: 'actualizar', msg: '', prueba: null }; render(); };
+  CM.acts['imp-reset'] = function () { CM.imp = nuevoImp(CM.imp.ent); render(); };
   CM.acts['imp-probar'] = function () { var a = analizar(); CM.imp.prueba = 'Prueba sin guardar: se crearían ' + a.nuevos.length + ', se actualizarían ' + a.act.length + ', se omitirían ' + a.omit.length + ' y ' + a.err.length + ' fila(s) tienen error. No se modificó nada.'; render(); };
   CM.acts['imp-ok'] = function () {
-    if (!CM.need('importexport', 'admin')) return;
-    var f = CM.imp, a = analizar(), lote = { id: CM.nextId('IMP'), ts: new Date().toISOString(), user: CM.db.cfg.operador, archivo: f.nombre, nuevos: [], prev: {}, deshecho: false };
-    var nuevosObj = [], prevs = {};
-    a.nuevos.forEach(function (o) { nuevosObj.push({ dni: o.dni, nombre: o.nombre, nac: o.nac, tel: o.tel, email: o.email, dir: o.dir, cp: '', obraSocial: '', ocupacion: '', motivo: '', dudas: '', codSeg: '', historiaCompleta: false, consentimiento: '', consImport: o.cons ? 'Sí (según archivo)' : 'No', reprocann: { estado: 'sin', vence: null, carnet: false }, alta: CM.hoy(), drive1: '', drive2: '', importada: true }); });
-    a.act.forEach(function (o) { prevs[o.dni] = JSON.parse(JSON.stringify(CM.paciente(o.dni))); });
-    // todo validado: recién ahora se modifica la base
+    var f = CM.imp, e = E();
+    if (!CM.need('importexport', 'admin') || !CM.need(e.perm, 'edit')) return;
+    var a = analizar(), lote = { id: CM.nextId('IMP'), ts: new Date().toISOString(), user: CM.db.cfg.operador, archivo: f.nombre, ent: f.ent, nuevos: [], prev: {}, deshecho: false }, prevs = {};
+    a.act.forEach(function (o) { prevs[o._id] = e.snap(o._id); });
+    // todo validado: recién ahora se modifica la base; si algo falla, se revierte
+    var respaldo = JSON.stringify(CM.db);
     try {
-      nuevosObj.forEach(function (p) { CM.db.pacientes[p.dni] = p; lote.nuevos.push(p.dni); });
-      a.act.forEach(function (o) { var p = CM.paciente(o.dni); if (o.nombre) p.nombre = o.nombre; if (o.tel) p.tel = o.tel; if (o.email) p.email = o.email; if (o.nac) p.nac = o.nac; if (o.dir) p.dir = o.dir; });
+      a.nuevos.forEach(function (o) { lote.nuevos.push(e.crear(o)); });
+      a.act.forEach(function (o) { e.actualizar(o._id, o); });
       lote.prev = prevs; CM.db.imports.push(lote);
-      CM.audit('Importación de pacientes', f.nombre + ' · ' + lote.nuevos.length + ' nuevos · ' + Object.keys(prevs).length + ' actualizados'); CM.save();
-    } catch (e) { CM.toast('Falló la importación y se revirtió: no se modificó nada.', true); return; }
-    CM.imp = { paso: 1, nombre: '', head: [], rows: [], map: {}, dup: 'actualizar', msg: '', prueba: null }; render(); CM.toast('Importación terminada: ' + lote.nuevos.length + ' nuevos y ' + Object.keys(prevs).length + ' actualizados.');
+      CM.audit('Importación de ' + e.label.toLowerCase(), f.nombre + ' · ' + lote.nuevos.length + ' nuevos · ' + Object.keys(prevs).length + ' actualizados'); CM.save();
+    } catch (err) { CM.db = JSON.parse(respaldo); CM.toast('Falló la importación y se revirtió: no se modificó nada.', true); return; }
+    CM.imp = nuevoImp(f.ent); render(); CM.toast('Importación terminada: ' + lote.nuevos.length + ' nuevos y ' + Object.keys(prevs).length + ' actualizados.');
   };
   CM.acts['imp-deshacer'] = function () {
     if (!CM.need('importexport', 'admin')) return;
     var l = CM.db.imports[CM.db.imports.length - 1]; if (!l || l.deshecho) return;
-    var bloq = l.nuevos.filter(function (d) { return CM.dispDe(d).length || CM.aportesDe(d).length; });
-    if (bloq.length) { CM.toast('No se puede deshacer: ya hay dispensaciones o aportes de pacientes de este lote.', true); return; }
-    l.nuevos.forEach(function (d) { delete CM.db.pacientes[d]; }); Object.keys(l.prev).forEach(function (d) { CM.db.pacientes[d] = l.prev[d]; });
+    var e = ENT[l.ent || 'pacientes'], bloq = l.nuevos.filter(function (d) { return e.bloqueo(d); });
+    if (bloq.length) { CM.toast('No se puede deshacer: ' + e.bloqueo(bloq[0]) + '.', true); return; }
+    l.nuevos.forEach(function (d) { e.quitar(d); }); Object.keys(l.prev).forEach(function (d) { e.restaurar(d, l.prev[d]); });
     l.deshecho = true; CM.audit('Importación deshecha', l.id + ' · ' + l.archivo); CM.save(); render(); CM.toast('Lote deshecho.');
   };
 

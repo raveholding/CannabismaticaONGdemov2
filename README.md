@@ -26,9 +26,9 @@ Para que el equipo y el cliente la recorran y definan correcciones. **No es el s
 | **Fidelización** | Tarjeta de sellos con QR firmado (1 por día), cupones con límites, membresías con consentimiento versionado y aporte asociado. |
 | **Personal y fichaje** | Empleados, tarjeta/QR firmado, fichaje (rechaza firmas falsas y repetidos en 60 s), planilla de horas. |
 | **Tareas y organigrama** | Tablero Kanban y organigrama editable. |
-| **Menú público** | «Quiero mi REPROCANN, talleres, cursos y servicios», ES/EN, frases y leyendas, Club (con consentimientos, control de menores), Wi-Fi, redes, acceso oculto (`#/acceso`), borrador → publicación con versiones y reversión. |
+| **Menú público** | Página completa «Quiero mi REPROCANN, talleres, cursos y servicios», ES/EN: portada, buscador, tarjetas con detalle (duración, qué incluye), agenda de talleres y cursos, cómo funciona, preguntas frecuentes, contacto, Club (consentimientos y control de menores), Wi-Fi, redes, QR y compartir; enlace directo a cada servicio (`#/m/P4`). Todo se edita en Administración → Menú público (borrador → publicación con versiones y reversión); acceso oculto en `#/acceso`. |
 | **Nube · Periféricos y ticket · Integraciones** | Estados honestos: *Pendiente de configuración* / *pendiente de prueba física*. Respaldo local real. Ticket 58/80 mm de ejemplo. |
-| **Importar / Exportar** | CSV en 3 pasos con errores por fila, modo prueba, duplicados, deshacer lote; exportaciones con neutralización de fórmulas. |
+| **Importar / Exportar** | Pacientes, personal, insumos de inventario y servicios del menú, desde CSV, Excel (.xlsx) o pegando desde una planilla; 3 pasos con errores por fila, modo prueba, duplicados, atomicidad y deshacer lote; exportaciones con neutralización de fórmulas. |
 | **Usuarios y permisos · Auditoría · Configuración** | 4 roles × módulos (simulado en el navegador), auditoría con cadena de hashes verificable, módulos activables y rubros financieros. |
 
 Terminología de ONG en toda la interfaz: paciente/socio, dispensación, aporte voluntario, Factura C ante ARCA.
@@ -48,7 +48,7 @@ Terminología de ONG en toda la interfaz: paciente/socio, dispensación, aporte 
 - Normativa (vigencias REPROCANN, exención de la ONG, texto de consentimiento) **[VERIFICAR con asesor legal y fuentes oficiales]**.
 - Las reglas de bloqueo y el tope mensual de flores son configurables y no representan una regla legal.
 
-- Nube (Supabase), pagos (Mercado Pago), Google, correo/WhatsApp, lector biométrico, impresoras y balanzas **no están conectados**: la demo lo dice en pantalla. Importar .xlsx, fotos con zoom, mapa embebido y reseñas de Google no están en esta demo.
+- Nube (Supabase), pagos (Mercado Pago), Google, correo/WhatsApp, lector biométrico, impresoras y balanzas **no están conectados**: la demo lo dice en pantalla. Fotos reales con zoom (las tarjetas usan ilustraciones propias), mapa embebido y reseñas de Google no están en esta demo.
 - Los roles y permisos se simulan en el navegador; en el sistema real se validan en el servidor.
 
 ## Estructura

@@ -269,6 +269,63 @@
   CM.fmtHM = function (min) { return Math.floor(min / 60) + ' h ' + String(min % 60).padStart(2, '0') + ' min'; };
 
   /* ---------- menú público: configuración por defecto ---------- */
+
+  /* contenidos ampliados del menú público: se completan en datos guardados antes de esta versión */
+  var ITX = {
+    P1: { dur: ['Proceso de 2 a 4 semanas (estimado)', 'Process of about 2 to 4 weeks (estimate)'], inc: ['Revisión de tu documentación|Review of your paperwork', 'Ayuda con la solicitud en el registro oficial|Help with the application in the official registry', 'Acompañamiento hasta tener novedades|Support until you get a response'] },
+    P2: { dur: ['Una reunión de 30 minutos', 'One 30-minute meeting'], inc: ['Control de la fecha de vencimiento|Check of your expiry date', 'Documentación actualizada|Updated paperwork', 'Aviso previo al próximo vencimiento|Reminder before the next expiry'] },
+    P3: { dur: ['Consulta de 40 minutos', '40-minute consultation'], inc: ['Evaluación del cuadro clínico|Assessment of your clinical situation', 'Orientación sobre el acompañamiento|Guidance on follow-up', 'Informe para tu historia clínica|Report for your medical record'] },
+    P4: { dur: ['2 horas', '2 hours'], inc: ['Material de estudio|Study material', 'Marco legal vigente [VERIFICAR]|Current legal framework [VERIFY]', 'Espacio para preguntas|Q&A time'] },
+    P5: { dur: ['90 minutos', '90 minutes'], inc: ['Información práctica|Practical information', 'Material impreso|Printed material', 'Charla abierta a familias|Open session for families'] },
+    P6: { dur: ['4 encuentros semanales', '4 weekly sessions'], inc: ['Cuadernillo del curso|Course booklet', 'Certificado de asistencia|Attendance certificate', 'Acceso al grupo de consultas|Access to the Q&A group'] },
+    P7: { dur: ['4 encuentros semanales', '4 weekly sessions'], inc: ['Formación para acompañantes|Training for companions', 'Material de apoyo|Support material', 'Certificado de asistencia|Attendance certificate'] },
+    P8: { dur: ['Seguimiento mensual', 'Monthly follow-up'], inc: ['Formulario de seguimiento médico|Medical follow-up form', 'Revisión de la evolución|Review of progress'] },
+    P9: { dur: ['Consulta de 30 minutos', '30-minute consultation'], inc: ['Orientación sobre la Ley 27.350 [VERIFICAR]|Guidance on Law 27.350 [VERIFY]', 'Dudas sobre el registro y la documentación|Questions about the registry and paperwork'] }
+  };
+  function lineas(a, i) { return a.map(function (x) { return x.split('|')[i] || ''; }).join('\n'); }
+  CM.menuExtra = function () {
+    var h = CM.hoy();
+    return {
+      portada: {
+        es: { kicker: 'Fundación · Salta', titulo: 'Acompañamiento para pacientes de cannabis medicinal', sub: 'Te ayudamos con tu REPROCANN y ofrecemos talleres, cursos y servicios informativos, con trato cercano y responsable.', cta1: 'Quiero mi REPROCANN', cta2: 'Escribinos por WhatsApp' },
+        en: { kicker: 'Foundation · Salta, Argentina', titulo: 'Support for medical cannabis patients', sub: 'We help you with your REPROCANN registration and offer workshops, courses and information services, with close and responsible care.', cta1: 'I want my REPROCANN', cta2: 'Message us on WhatsApp' }
+      },
+      pasos: [
+        { es: { t: 'Primer contacto', d: 'Escribinos o visitanos y te contamos cómo seguir.' }, en: { t: 'First contact', d: 'Write or visit us and we explain the next steps.' } },
+        { es: { t: 'Consulta de evaluación', d: 'Una consulta con el equipo médico de la fundación.' }, en: { t: 'Initial consultation', d: 'A consultation with the foundation medical team.' } },
+        { es: { t: 'Documentación y solicitud', d: 'Reunimos tus papeles y te acompañamos en el registro oficial. Los requisitos los define el organismo [VERIFICAR].' }, en: { t: 'Paperwork and application', d: 'We gather your documents and support you in the official registry. Requirements are set by the authority [VERIFY].' } },
+        { es: { t: 'Seguimiento', d: 'Controles periódicos y respuestas a tus dudas.' }, en: { t: 'Follow-up', d: 'Regular check-ins and answers to your questions.' } }
+      ],
+      agenda: [
+        { id: 'AG1', item: 'P4', fecha: CM.addDays(h, 7), hora: '18:00', lugar: 'Sede de la fundación', modalidad: 'presencial', cupo: 20, activo: true },
+        { id: 'AG2', item: 'P5', fecha: CM.addDays(h, 14), hora: '17:30', lugar: 'Virtual (enlace por WhatsApp)', modalidad: 'virtual', cupo: 40, activo: true },
+        { id: 'AG3', item: 'P6', fecha: CM.addDays(h, 21), hora: '19:00', lugar: 'Sede de la fundación', modalidad: 'presencial', cupo: 15, activo: true },
+        { id: 'AG4', item: 'P7', fecha: CM.addDays(h, 35), hora: '19:00', lugar: 'Sede de la fundación', modalidad: 'presencial', cupo: 15, activo: true }
+      ],
+      faq: [
+        { es: { q: '¿Qué es el REPROCANN?', a: 'Es el registro nacional creado a partir de la Ley 27.350 para personas que usan cannabis con fines medicinales. Los requisitos y trámites los define el organismo oficial [VERIFICAR en argentina.gob.ar].' }, en: { q: 'What is REPROCANN?', a: 'It is the national registry created under Law 27,350 for people who use cannabis for medical purposes. Requirements and procedures are set by the official authority [VERIFY].' } },
+        { es: { q: '¿Los aportes son obligatorios?', a: 'No. Los aportes son voluntarios y se destinan al sostenimiento de la fundación. Podés consultar sin aportar.' }, en: { q: 'Are contributions mandatory?', a: 'No. Contributions are voluntary and support the foundation. You can ask questions without contributing.' } },
+        { es: { q: '¿Cómo me inscribo a un taller o curso?', a: 'Agregalo a «Mi consulta» y envianos el mensaje por WhatsApp. Es una solicitud: te confirmamos el lugar por el mismo medio.' }, en: { q: 'How do I sign up for a workshop or course?', a: 'Add it to “My inquiry” and send us the message on WhatsApp. It is a request: we confirm your place the same way.' } },
+        { es: { q: '¿Atienden a menores de edad?', a: 'Los servicios son para mayores de 18 años o con autorización de su tutor/a. Consultanos el caso [VERIFICAR texto legal].' }, en: { q: 'Do you see minors?', a: 'Services are for people over 18 or with guardian authorization. Ask us about your case [VERIFY legal text].' } },
+        { es: { q: '¿Esta información reemplaza una consulta médica?', a: 'No. Todo el contenido es informativo y no reemplaza la consulta con un profesional de la salud.' }, en: { q: 'Does this information replace medical advice?', a: 'No. All content is informational and does not replace a consultation with a health professional.' } }
+      ]
+    };
+  };
+  CM.menuFill = function (c) {
+    if (!c) return c;
+    var x = CM.menuExtra();
+    ['portada', 'pasos', 'agenda', 'faq'].forEach(function (k) { if (!c[k]) c[k] = x[k]; });
+    c.bloques = c.bloques || {};
+    ['agenda', 'pasos', 'faq'].forEach(function (k) { if (c.bloques[k] === undefined) c.bloques[k] = true; });
+    c.orden = c.orden || ['catalogo'];
+    ['agenda', 'pasos', 'faq'].forEach(function (k) { if (c.orden.indexOf(k) < 0) c.orden.splice(c.orden.indexOf('catalogo') + 1 + ['agenda', 'pasos', 'faq'].indexOf(k), 0, k); });
+    (c.items || []).forEach(function (i) {
+      var d = ITX[i.id];
+      if (!i.dur) i.dur = d ? { es: d.dur[0], en: d.dur[1] } : { es: '', en: '' };
+      if (!i.inc) i.inc = d ? { es: lineas(d.inc, 0), en: lineas(d.inc, 1) } : { es: '', en: '' };
+    });
+    return c;
+  };
   CM.menuDefault = function () {
     return {
       nombre: 'Cannabismatica I+D',
@@ -314,6 +371,8 @@
       lang: 'es'
     };
   };
+  var menuDef0 = CM.menuDefault;
+  CM.menuDefault = function () { return CM.menuFill(menuDef0()); };
 
   /* ---------- datos de ejemplo de los módulos nuevos ---------- */
   function ts(fecha, hh) { return fecha + 'T' + hh + ':00.000Z'; }
@@ -469,5 +528,8 @@
     init0();
     if (!CM.db.cajas || !CM.db.menu) { CM.seedExt(CM.db); CM.save(); }
     else if (CM.db.audit.length && !CM.db.audit[0].h) { CM.rehashAudit(); CM.save(); }
+    var m = CM.db.menu, ch = false;
+    if (m && m.draft && !m.draft.portada) { CM.menuFill(m.draft); CM.menuFill(m.pub); (m.versiones || []).forEach(function (v) { CM.menuFill(v.cfg); }); ch = true; }
+    if (ch) CM.save();
   };
 })(window);

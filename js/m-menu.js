@@ -30,7 +30,7 @@
     es: { abierto: 'Abierto ahora', cerrado: 'Cerrado ahora', demo: 'Demostración con contenidos de ejemplo', aporte: 'Aporte sugerido', sin: 'Sin aporte', agregar: 'Agregar a mi consulta', quitar: 'Quitar', mi: 'Mi consulta', vacio: 'Todavía no agregaste nada.', enviar: 'Enviar consulta por WhatsApp', aviso: 'Esto es una consulta: no confirma turnos ni compromisos. El equipo te responde por WhatsApp.', club: 'Sumate al club de socios/as', clubD: 'Dejanos tus datos para recibir información de la fundación. Los sellos y beneficios se validan siempre en el mostrador.', nom: 'Nombre', ape: 'Apellido', nac: 'Fecha de nacimiento', wa: 'WhatsApp (con característica)', c1: 'Acepto sumarme al club de socios/as y que la fundación guarde mis datos para ese fin. *', c2: 'Quiero recibir novedades y comunicaciones por WhatsApp o correo.', c3: 'Acepto el uso de mis datos para estadísticas de la fundación.', unirme: 'Quiero sumarme', gracias: 'Recibimos tu solicitud. Si hace falta, el equipo se comunica con vos.', wifi: 'Wi-Fi para invitados', red: 'Red', clave: 'Clave', copiar: 'Copiar clave', wifiOff: 'La clave se entrega en el mostrador durante el horario de atención.', donde: 'Dónde estamos', llegar: 'Cómo llegar', resena: 'Dejanos tu reseña', redes: 'Seguinos', compartir: 'Compartir', copiado: 'Enlace copiado', arriba: 'Volver arriba', dev: 'Desarrollado por', legal: 'Información legal', idioma: 'Idioma', cant: 'Cantidad' },
     en: { abierto: 'Open now', cerrado: 'Closed now', demo: 'Demo with sample content', aporte: 'Suggested contribution', sin: 'No contribution', agregar: 'Add to my inquiry', quitar: 'Remove', mi: 'My inquiry', vacio: 'You have not added anything yet.', enviar: 'Send inquiry via WhatsApp', aviso: 'This is an inquiry: it does not confirm appointments or commitments. The team will reply on WhatsApp.', club: 'Join our members club', clubD: 'Leave your details to receive information from the foundation. Stamps and benefits are always validated at the counter.', nom: 'First name', ape: 'Last name', nac: 'Date of birth', wa: 'WhatsApp (with area code)', c1: 'I agree to join the members club and to let the foundation keep my data for that purpose. *', c2: 'I want to receive news and messages by WhatsApp or email.', c3: 'I agree to the use of my data for the foundation statistics.', unirme: 'Join', gracias: 'We received your request. The team will contact you if needed.', wifi: 'Guest Wi-Fi', red: 'Network', clave: 'Password', copiar: 'Copy password', wifiOff: 'The password is given at the counter during opening hours.', donde: 'Where to find us', llegar: 'Get directions', resena: 'Leave us a review', redes: 'Follow us', compartir: 'Share', copiado: 'Link copied', arriba: 'Back to top', dev: 'Developed by', legal: 'Legal information', idioma: 'Language', cant: 'Quantity' }
   };
-  CM.pub = { lang: '', cart: {}, cat: '', enviado: false, toques: [] };
+  CM.pub = { lang: '', cart: {}, cat: '*', q: '', abierto: '', enviado: false, toques: [] };
   function lang() {
     if (!CM.pub.lang) {
       var m = /[?&]lang=(es|en)/.exec(g.location.search || '');
@@ -57,53 +57,94 @@
     return out.join(' · ');
   }
 
+  /* ---------- ilustraciones propias (no son fotos de productos) ---------- */
+  function artSvg(cat, n) {
+    var hue = 88 + (n % 4) * 8, a = 'hsl(' + hue + ',55%,52%)', b = 'hsl(' + (hue + 20) + ',45%,26%)', m = '';
+    if (cat === 'reprocann') m = '<path d="M140 18 L186 34 V70 C186 92 164 104 140 112 C116 104 94 92 94 70 V34 Z" fill="none" stroke="' + a + '" stroke-width="3"/><path d="M140 94 C140 74 140 62 140 50 M140 78 C128 76 120 68 118 58 C128 60 136 66 140 76 M140 70 C152 68 160 60 162 50 C152 52 144 58 140 68" fill="none" stroke="' + a + '" stroke-width="3" stroke-linecap="round"/>';
+    else if (cat === 'talleres') m = '<path d="M140 108 V58" stroke="' + a + '" stroke-width="4" stroke-linecap="round"/><path d="M140 70 C120 70 106 58 104 40 C124 40 138 52 140 70 Z M140 62 C158 62 172 50 174 32 C154 32 142 44 140 62 Z" fill="none" stroke="' + a + '" stroke-width="3" stroke-linejoin="round"/><path d="M110 108 H170" stroke="' + a + '" stroke-width="4" stroke-linecap="round"/>';
+    else if (cat === 'cursos') m = '<path d="M84 34 H136 C140 34 140 38 140 38 V104 C132 98 90 98 84 100 Z M196 34 H144 C140 34 140 38 140 38 V104 C148 98 190 98 196 100 Z" fill="none" stroke="' + a + '" stroke-width="3" stroke-linejoin="round"/><path d="M96 52 H128 M96 66 H128 M152 52 H184 M152 66 H184" stroke="' + a + '" stroke-width="3" stroke-linecap="round"/>';
+    else m = '<circle cx="140" cy="62" r="34" fill="none" stroke="' + a + '" stroke-width="3"/><path d="M140 84 C112 66 118 44 134 46 C138 46 140 50 140 52 C140 50 142 46 146 46 C162 44 168 66 140 84 Z" fill="none" stroke="' + a + '" stroke-width="3" stroke-linejoin="round"/>';
+    return '<svg viewBox="0 0 280 124" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><defs><linearGradient id="ga' + n + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + b + '"/><stop offset="1" stop-color="#0b120b"/></linearGradient></defs><rect width="280" height="124" fill="url(#ga' + n + ')"/><circle cx="' + (30 + (n * 37) % 220) + '" cy="24" r="40" fill="' + a + '" opacity=".08"/><circle cx="' + (230 - (n * 23) % 160) + '" cy="110" r="52" fill="' + a + '" opacity=".07"/>' + m + '</svg>';
+  }
+  var NAVL = { es: { catalogo: 'Servicios', agenda: 'Agenda', pasos: 'Cómo funciona', faq: 'Preguntas', club: 'Club', ubic: 'Contacto' }, en: { catalogo: 'Services', agenda: 'Schedule', pasos: 'How it works', faq: 'FAQ', club: 'Club', ubic: 'Contact' } };
+  var TX = {
+    es: { ver: 'Ver detalle', buscar: 'Buscar un servicio, taller o curso', todos: 'Todos', sinRes: 'No encontramos nada con esa búsqueda.', agenda: 'Próximas actividades', agendaD: 'Reservá tu lugar agregando la actividad a tu consulta. Es una solicitud: confirmamos el cupo por WhatsApp.', cupo: 'cupos', pres: 'Presencial', virt: 'Virtual', pasos: 'Cómo funciona', faq: 'Preguntas frecuentes', incluye: 'Qué incluye', dur: 'Duración', cerrar: 'Cerrar', consultarWa: 'Consultar por WhatsApp', contacto: 'Contacto', hoy: 'Hoy', wa: 'WhatsApp', mail: 'Correo', hecho: 'Listo', inscr: 'Quiero inscribirme', chips: 'Ley 27.350 · REPROCANN' },
+    en: { ver: 'View details', buscar: 'Search a service, workshop or course', todos: 'All', sinRes: 'We found nothing for that search.', agenda: 'Upcoming activities', agendaD: 'Reserve your place by adding the activity to your inquiry. It is a request: we confirm availability on WhatsApp.', cupo: 'seats', pres: 'In person', virt: 'Online', pasos: 'How it works', faq: 'Frequently asked questions', incluye: 'What is included', dur: 'Duration', cerrar: 'Close', consultarWa: 'Ask on WhatsApp', contacto: 'Contact', hoy: 'Today', wa: 'WhatsApp', mail: 'Email', hecho: 'Done', inscr: 'I want to sign up', chips: 'Law 27,350 · REPROCANN' }
+  };
+  function lista(txt) { return String(txt || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+  function fechaL(f) { var L = lang(); try { return new Intl.DateTimeFormat(L === 'en' ? 'en-GB' : 'es-AR', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(f + 'T12:00:00Z')); } catch (e) { return f; } }
+  function itemCard(cfg, i, a, t, x, n) {
+    var q = CM.pub.cart[i.id] || 0, cat = i.cat;
+    return '<article class="pub-it"><div class="pub-art">' + artSvg(cat, n) + '</div><div class="pub-itb"><h3>' + esc(tr(cfg, i, 'n')) + '</h3><p>' + esc(tr(cfg, i, 'd')) + '</p>' +
+      (i.dur && (i.dur[lang()] || i.dur.es) ? '<p class="pub-dur">' + CM.icon('clock') + esc(i.dur[lang()] || i.dur.es) + '</p>' : '') +
+      '<div class="pub-itf"><b>' + (i.cent > 0 ? t.aporte + ': ' + esc(money(i.cent)) : t.sin) + '</b></div><div class="row"><button type="button" class="btn sm" ' + a + '="pub-det" data-id="' + esc(i.id) + '">' + x.ver + '</button>' +
+      (q ? '<span class="pill p-info">×' + q + '</span><button type="button" class="btn sm" ' + a + '="pub-quitar" data-id="' + esc(i.id) + '" aria-label="' + t.quitar + ' ' + esc(tr(cfg, i, 'n')) + '">−</button>' : '') + '<button type="button" class="btn pri sm" ' + a + '="pub-add" data-id="' + esc(i.id) + '">' + (q ? '+' : t.agregar) + '</button></div></div></article>';
+  }
+
   /* ---------- la página pública (sirve para el menú publicado y para la vista previa del borrador) ---------- */
   function pubHtml(cfg, live) {
-    var L = lang(), t = T[L], ab = abiertoAhora(cfg), a = live ? 'data-act' : 'data-x';
+    CM.menuFill(cfg);
+    var L = lang(), t = T[L], x = TX[L], ab = abiertoAhora(cfg), a = live ? 'data-act' : 'data-x', po = cfg.portada[L] || cfg.portada.es, wa = 'https://wa.me/' + cfg.wa;
     var cats = cfg.cats.filter(function (c) { return cfg.items.some(function (i) { return i.cat === c.id && i.activo; }); });
-    var cat = CM.pub.cat && cats.some(function (c) { return c.id === CM.pub.cat; }) ? CM.pub.cat : (cats[0] ? cats[0].id : '');
+    var cat = CM.pub.cat === '*' ? '*' : (CM.pub.cat && cats.some(function (c) { return c.id === CM.pub.cat; }) ? CM.pub.cat : '*');
+    var q = CM.norm(CM.pub.q || '');
     var rot = cfg.frases.filter(function (f) { return f.activa && f.tipo !== 'legal'; }), leg = cfg.frases.filter(function (f) { return f.activa && f.tipo === 'legal'; });
+    var on = function (b) { return b === 'catalogo' || cfg.bloques[b]; };
+    var ancl = cfg.orden.filter(function (b) { return NAVL[L][b] && on(b) && (b !== 'club' || cfg.club.activo) && (b !== 'agenda' || cfg.agenda.some(function (g1) { return g1.activo; })); });
     var h = '<div class="pubpage' + (live ? '' : ' prev') + '" lang="' + L + '">' +
       '<header class="pub-h"><button type="button" class="pub-logo" ' + a + '="pub-logo" aria-label="' + esc(cfg.nombre) + '"><img src="assets/logo.png" alt="' + esc(cfg.nombre) + '" width="723" height="220"></button>' +
+      '<nav class="pub-nav" aria-label="' + esc(cfg.nombre) + '">' + ancl.map(function (b) { return '<button type="button" ' + a + '="pub-ir" data-v="' + b + '">' + NAVL[L][b] + '</button>'; }).join('') + '</nav>' +
       '<div class="pub-lang" role="group" aria-label="' + t.idioma + '"><button type="button" ' + a + '="pub-lang" data-v="es" aria-pressed="' + (L === 'es') + '" lang="es">ES</button><button type="button" ' + a + '="pub-lang" data-v="en" aria-pressed="' + (L === 'en') + '" lang="en">EN</button></div></header>' +
-      '<div class="pub-id"><h1>' + esc(cfg.nombre) + '</h1><p>' + esc(cfg.eslogan[L] || cfg.eslogan.es) + '</p>' +
-      '<p class="pub-meta">' + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + (ab === null ? '' : ' · <span class="pill ' + (ab ? 'p-ok' : 'p-mu') + '">' + (ab ? t.abierto : t.cerrado) + '</span>') + '</p>' +
-      (cfg.mostrarHorario ? '<p class="pub-hrs">' + esc(hrsTxt(cfg)) + '</p>' : '') + '</div>' +
+      '<section class="pub-hero"><div class="pub-hero-bg" aria-hidden="true">' + artSvg('reprocann', 3).replace('<svg ', '<svg class="hb" ') + '</div><div class="pub-hero-in"><p class="pub-kick">' + esc(po.kicker) + '</p><h1>' + esc(po.titulo) + '</h1><p class="pub-sub">' + esc(po.sub) + '</p>' +
+      '<div class="row pub-cta"><button type="button" class="btn pri" ' + a + '="pub-reprocann">' + esc(po.cta1) + '</button><a class="btn" href="' + esc(wa) + '" target="_blank" rel="noopener noreferrer">' + esc(po.cta2) + '</a></div>' +
+      '<ul class="pub-chips"><li>' + CM.icon('shield') + esc(x.chips) + '</li><li>' + CM.icon('pin') + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + '</li>' + (ab === null ? '' : '<li><span class="pill ' + (ab ? 'p-ok' : 'p-mu') + '">' + (ab ? t.abierto : t.cerrado) + '</span></li>') + '</ul></div></section>' +
       '<div class="pub-demo">' + t.demo + '</div>';
-    if (rot.length) h += '<div class="pub-rot"><p id="pubRot" ' + (cfg.rotar && live ? 'aria-live="polite"' : '') + ' data-n="' + rot.length + '" data-i="0" data-s="' + cfg.intervalo + '">' + esc(ph(cfg, rot[0])) + '</p>' + (cfg.rotar && live && rot.length > 1 ? '<button type="button" class="btn sm" data-act="pub-rot-pausa" id="pubPausa" aria-pressed="false">Pausar</button>' : '') + '</div>';
-    // catálogo
-    h += '<section class="pub-s" aria-labelledby="pubCat"><div class="pub-tabs" role="tablist" id="pubCat">' + cats.map(function (c) { return '<button type="button" role="tab" ' + a + '="pub-cat" data-v="' + esc(c.id) + '" aria-selected="' + (c.id === cat) + '" class="' + (c.id === 'reprocann' ? 'hl' : '') + '">' + esc(c[L] || c.es) + '</button>'; }).join('') + '</div>' +
-      '<div class="pub-items">' + cfg.items.filter(function (i) { return i.cat === cat && i.activo; }).map(function (i) {
-        var q = CM.pub.cart[i.id] || 0;
-        return '<article class="pub-it"><h3>' + esc(tr(cfg, i, 'n')) + '</h3><p>' + esc(tr(cfg, i, 'd')) + '</p><div class="row sp"><b>' + (i.cent > 0 ? t.aporte + ': ' + esc(money(i.cent)) : t.sin) + '</b><span class="row">' + (q ? '<span class="pill p-info">×' + q + '</span><button type="button" class="btn sm" ' + a + '="pub-quitar" data-id="' + esc(i.id) + '" aria-label="' + t.quitar + ' ' + esc(tr(cfg, i, 'n')) + '">−</button>' : '') + '<button type="button" class="btn sm pri" ' + a + '="pub-add" data-id="' + esc(i.id) + '">' + t.agregar + '</button></span></div></article>';
-      }).join('') + '</div></section>';
+    if (rot.length) h += '<div class="pub-rot"><p id="pubRot" ' + (cfg.rotar && live ? 'aria-live="polite"' : '') + ' data-n="' + rot.length + '" data-i="0" data-s="' + cfg.intervalo + '">' + esc(ph(cfg, rot[0])) + '</p>' + (cfg.rotar && live && rot.length > 1 ? '<button type="button" class="btn sm" data-act="pub-rot-pausa" id="pubPausa" aria-pressed="false">' + (L === 'en' ? 'Pause' : 'Pausar') + '</button>' : '') + '</div>';
     var ids = Object.keys(CM.pub.cart).filter(function (k) { return CM.pub.cart[k] > 0; });
-    h += '<section class="pub-s pub-cart" aria-labelledby="pubMi"><h2 id="pubMi">' + t.mi + '</h2>' + (ids.length ? '<ul>' + ids.map(function (k) { var it = cfg.items.filter(function (x) { return x.id === k; })[0]; return it ? '<li>' + esc(tr(cfg, it, 'n')) + ' ×' + CM.pub.cart[k] + '</li>' : ''; }).join('') + '</ul><a class="btn pri" ' + (live ? 'href="#/m" data-act="pub-enviar"' : 'href="#"') + '>' + t.enviar + '</a><p class="hint">' + t.aviso + '</p>' : '<p class="hint">' + t.vacio + '</p>') + '</section>';
-    // orden de bloques
     cfg.orden.forEach(function (b) {
-      if (b === 'club' && cfg.bloques.club && cfg.club.activo) {
-        h += '<section class="pub-s" aria-labelledby="pubClub"><h2 id="pubClub">' + t.club + '</h2><p>' + t.clubD + '</p>' + (CM.pub.enviado && live ? '<div class="note ok" role="status">' + t.gracias + '</div>' : '') +
+      if (b === 'catalogo') {
+        var its = cfg.items.filter(function (i) { return i.activo && (cat === '*' || i.cat === cat) && (!q || CM.norm(tr(cfg, i, 'n') + ' ' + tr(cfg, i, 'd')).indexOf(q) > -1); });
+        h += '<section class="pub-s" id="pub-catalogo" aria-labelledby="pubCatT"><h2 id="pubCatT">' + NAVL[L].catalogo + '</h2>' +
+          '<label class="pub-search"><span class="sr">' + x.buscar + '</span>' + CM.icon('search') + '<input class="in" type="search" id="pubQ" placeholder="' + esc(x.buscar) + '" value="' + esc(CM.pub.q || '') + '" ' + (live ? '' : 'disabled') + ' autocomplete="off"></label>' +
+          '<div class="pub-tabs" role="group" aria-label="' + NAVL[L].catalogo + '"><button type="button" ' + a + '="pub-cat" data-v="*" aria-pressed="' + (cat === '*') + '">' + x.todos + '</button>' + cats.map(function (c) { return '<button type="button" ' + a + '="pub-cat" data-v="' + esc(c.id) + '" aria-pressed="' + (c.id === cat) + '" class="' + (c.id === 'reprocann' ? 'hl' : '') + '">' + esc(c[L] || c.es) + '</button>'; }).join('') + '</div>' +
+          '<div class="pub-items">' + (its.length ? its.map(function (i, n) { return itemCard(cfg, i, a, t, x, n + 1); }).join('') : '<p class="empty">' + x.sinRes + '</p>') + '</div></section>';
+        h += '<section class="pub-s pub-cart" id="pub-consulta" aria-labelledby="pubMi"><h2 id="pubMi">' + t.mi + '</h2>' + (ids.length ? '<ul>' + ids.map(function (k) { var it = cfg.items.filter(function (y) { return y.id === k; })[0]; return it ? '<li>' + esc(tr(cfg, it, 'n')) + ' ×' + CM.pub.cart[k] + '</li>' : ''; }).join('') + '</ul><button type="button" class="btn pri" ' + a + '="pub-enviar">' + t.enviar + '</button><p class="hint">' + t.aviso + '</p>' : '<p class="hint">' + t.vacio + '</p>') + '</section>';
+      } else if (b === 'agenda' && cfg.bloques.agenda) {
+        var ag = cfg.agenda.filter(function (g1) { return g1.activo && g1.fecha >= CM.hoy(); }).sort(function (u, v) { return u.fecha.localeCompare(v.fecha); });
+        if (ag.length) h += '<section class="pub-s" id="pub-agenda" aria-labelledby="pubAg"><h2 id="pubAg">' + CM.icon('cal') + x.agenda + '</h2><p class="hint">' + x.agendaD + '</p><ul class="pub-ag">' + ag.map(function (g1) {
+          var it = cfg.items.filter(function (y) { return y.id === g1.item; })[0]; if (!it) return '';
+          return '<li><div class="pub-agd"><b>' + esc(fechaL(g1.fecha)) + '</b><small>' + esc(g1.hora) + ' hs</small></div><div class="pub-agm"><b>' + esc(tr(cfg, it, 'n')) + '</b><small>' + (g1.modalidad === 'virtual' ? x.virt : x.pres) + ' · ' + esc(g1.lugar) + ' · ' + esc(g1.cupo) + ' ' + x.cupo + '</small></div><button type="button" class="btn pri sm" ' + a + '="pub-add" data-id="' + esc(it.id) + '">' + x.inscr + '</button></li>';
+        }).join('') + '</ul></section>';
+      } else if (b === 'pasos' && cfg.bloques.pasos && cfg.pasos.length) {
+        h += '<section class="pub-s" id="pub-pasos" aria-labelledby="pubPs"><h2 id="pubPs">' + x.pasos + '</h2><ol class="pub-steps">' + cfg.pasos.map(function (p1, i) { var o = p1[L] || p1.es; return '<li><span class="pub-n" aria-hidden="true">' + (i + 1) + '</span><div><b>' + esc(o.t) + '</b><p>' + esc(o.d) + '</p></div></li>'; }).join('') + '</ol></section>';
+      } else if (b === 'faq' && cfg.bloques.faq && cfg.faq.length) {
+        h += '<section class="pub-s" id="pub-faq" aria-labelledby="pubFq"><h2 id="pubFq">' + x.faq + '</h2>' + cfg.faq.map(function (f1) { var o = f1[L] || f1.es; return '<details class="pub-q"><summary>' + esc(o.q) + '</summary><p>' + esc(o.a) + '</p></details>'; }).join('') + '</section>';
+      } else if (b === 'club' && cfg.bloques.club && cfg.club.activo) {
+        h += '<section class="pub-s" id="pub-club" aria-labelledby="pubClub"><h2 id="pubClub">' + t.club + '</h2><p>' + t.clubD + '</p>' + (CM.pub.enviado && live ? '<div class="note ok" role="status">' + t.gracias + '</div>' : '') +
           '<form ' + (live ? 'data-form="pub-club"' : '') + ' class="f" autocomplete="off" novalidate><div class="f f2"><label class="fl"><span>' + t.nom + ' *</span><input class="in" name="nom" autocomplete="given-name"></label><label class="fl"><span>' + t.ape + ' *</span><input class="in" name="ape" autocomplete="family-name"></label></div>' +
           '<div class="f f2"><label class="fl"><span>' + t.nac + ' *</span><input class="in" type="date" name="nac" max="' + CM.hoy() + '"></label><label class="fl"><span>' + t.wa + ' *</span><input class="in" name="wa" inputmode="tel" placeholder="3875000000"></label></div>' +
           '<label class="chk"><input type="checkbox" name="c1"><span>' + t.c1 + '</span></label><label class="chk"><input type="checkbox" name="c2"><span>' + t.c2 + '</span></label><label class="chk"><input type="checkbox" name="c3"><span>' + t.c3 + '</span></label>' +
           '<p class="err" role="alert" data-err></p><button class="btn pri" type="submit">' + t.unirme + '</button></form></section>';
       } else if (b === 'wifi' && cfg.bloques.wifi && cfg.wifi.ssid) {
         var vig = cfg.wifi.vigencia === 'siempre' || ab !== false;
-        h += '<section class="pub-s" aria-labelledby="pubWifi"><h2 id="pubWifi">' + CM.icon('wifi') + t.wifi + '</h2>' + (vig && cfg.wifi.clave ? '<div class="kv"><div><small>' + t.red + '</small><b>' + esc(cfg.wifi.ssid) + '</b></div><div><small>' + t.clave + '</small><b>' + esc(cfg.wifi.clave) + '</b></div></div><div class="row" style="margin-top:10px"><button type="button" class="btn sm" ' + a + '="pub-copiar" data-v="' + esc(cfg.wifi.clave) + '">' + CM.icon('copy') + t.copiar + '</button></div><div class="qrbox" role="img" aria-label="QR Wi-Fi ' + esc(cfg.wifi.ssid) + '">' + CM.qrSvg('WIFI:T:WPA;S:' + cfg.wifi.ssid.replace(/([\\;,:"])/g, '\\$1') + ';P:' + cfg.wifi.clave.replace(/([\\;,:"])/g, '\\$1') + ';;') + '</div>' : '<p>' + t.wifiOff + '</p>') + '<p class="hint">Ley 25.891 [VERIFICAR texto y alcance].</p></section>';
+        h += '<section class="pub-s" id="pub-wifi" aria-labelledby="pubWifi"><h2 id="pubWifi">' + CM.icon('wifi') + t.wifi + '</h2>' + (vig && cfg.wifi.clave ? '<div class="kv"><div><small>' + t.red + '</small><b>' + esc(cfg.wifi.ssid) + '</b></div><div><small>' + t.clave + '</small><b>' + esc(cfg.wifi.clave) + '</b></div></div><div class="row" style="margin-top:10px"><button type="button" class="btn sm" ' + a + '="pub-copiar" data-v="' + esc(cfg.wifi.clave) + '">' + CM.icon('copy') + t.copiar + '</button></div>' : '<p class="hint">' + t.wifiOff + '</p>') + '</section>';
       } else if (b === 'ubic' && cfg.bloques.ubic) {
-        var q = encodeURIComponent(cfg.ubic.consulta || (cfg.direccion + ' ' + cfg.localidad)), rs = cfg.ubic.resena ? CM.urlHttps(cfg.ubic.resena) : null;
-        h += '<section class="pub-s" aria-labelledby="pubUb"><h2 id="pubUb">' + CM.icon('pin') + t.donde + '</h2><p>' + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + '</p><div class="row"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=' + q + '" target="_blank" rel="noopener noreferrer">' + t.llegar + '</a>' + (rs ? '<a class="btn" href="' + esc(rs) + '" target="_blank" rel="noopener noreferrer">' + t.resena + '</a>' : '') + '</div></section>';
+        var qs = encodeURIComponent(cfg.ubic.consulta || (cfg.direccion + ' ' + cfg.localidad)), rs = cfg.ubic.resena ? CM.urlHttps(cfg.ubic.resena) : null;
+        h += '<section class="pub-s" id="pub-ubic" aria-labelledby="pubUb"><h2 id="pubUb">' + CM.icon('pin') + t.donde + '</h2><div class="pub-contact"><div><p><b>' + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + '</b></p>' + (cfg.mostrarHorario ? '<p class="pub-hrs">' + esc(hrsTxt(cfg)) + '</p>' : '') + '<p><a href="' + esc(wa) + '" target="_blank" rel="noopener noreferrer">' + x.wa + '</a>' + (cfg.email ? ' · <a href="mailto:' + esc(cfg.email) + '">' + esc(cfg.email) + '</a>' : '') + '</p>' +
+          '<div class="row"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=' + qs + '" target="_blank" rel="noopener noreferrer">' + t.llegar + '</a>' + (rs ? '<a class="btn" href="' + esc(rs) + '" target="_blank" rel="noopener noreferrer">' + t.resena + '</a>' : '') + '</div></div></div></section>';
       } else if (b === 'redes' && cfg.bloques.redes) {
         var rr = cfg.redes.filter(function (r) { return r.activa; }).map(function (r) {
           var u = r.url === 'wa' ? 'https://wa.me/' + cfg.wa : urlRed(r.label, r.url);
           return u ? '<a class="btn sm" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(r.label) + '</a>' : '';
         }).join('');
-        if (rr) h += '<section class="pub-s" aria-labelledby="pubRs"><h2 id="pubRs">' + t.redes + '</h2><div class="row">' + rr + '</div></section>';
+        if (rr) h += '<section class="pub-s" id="pub-redes" aria-labelledby="pubRs"><h2 id="pubRs">' + t.redes + '</h2><div class="row">' + rr + '</div></section>';
       }
     });
-    if (cfg.bloques.compartir) h += '<section class="pub-s"><button type="button" class="btn" ' + a + '="pub-share">' + CM.icon('share') + t.compartir + '</button></section>';
+    if (cfg.bloques.compartir) h += '<section class="pub-s pub-share"><div><h2>' + t.compartir + '</h2><div class="row"><button type="button" class="btn" ' + a + '="pub-share">' + CM.icon('share') + t.compartir + '</button><button type="button" class="btn" ' + a + '="pub-copiar" data-v="' + esc(urlPub()) + '">' + CM.icon('copy') + t.copiado.replace('Enlace copiado', 'Copiar enlace').replace('Link copied', 'Copy link') + '</button></div></div><div class="qrbox" role="img" aria-label="QR">' + CM.qrSvg(urlPub()) + '</div></section>';
     h += '<footer class="pub-f">' + (leg.length ? '<div class="pub-leg"><b>' + t.legal + '</b>' + leg.map(function (f) { return '<p>' + esc(ph(cfg, f)) + '</p>'; }).join('') + '</div>' : '') +
       '<p>' + t.dev + ' <b>Rave Holding</b> · <a href="https://wa.me/5493875143900?text=' + encodeURIComponent('Hola Rave Holding, te escribo desde el menú de ' + cfg.nombre) + '" target="_blank" rel="noopener noreferrer">WhatsApp +54 9 387 514-3900</a> · <a href="mailto:raveholding@gmail.com">raveholding@gmail.com</a></p></footer>' +
+      (live ? '<a class="pub-wa" href="' + esc(wa) + '" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">' + CM.icon('chat') + '</a>' : '') +
+      (ids.length && live ? '<button type="button" class="pub-bar" ' + a + '="pub-ir" data-v="consulta">' + t.mi + ' (' + ids.reduce(function (s, k) { return s + CM.pub.cart[k]; }, 0) + ')</button>' : '') +
       (cfg.bloques.volver && live ? '<button type="button" class="pub-up" id="pubUp" data-act="pub-up" aria-label="' + t.arriba + '" hidden>' + CM.icon('up') + '</button>' : '') + '</div>';
     return h;
   }
@@ -118,6 +159,31 @@
     CM.db.cfg.rol = u.rol; CM.db.cfg.operador = u.nombre; CM.audit('Ingreso al sistema', u.nombre + ' · rol ' + u.rol + ' · desde el menú público'); CM.save(); g.location.hash = '#/inicio'; render();
   };
   /* acciones del menú público */
+
+  CM.acts['pub-ir'] = function (t) {
+    var b = t.getAttribute('data-v'), el = document.getElementById('pub-' + b); if (!el) return;
+    var rm = g.matchMedia && g.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: rm ? 'auto' : 'smooth', block: 'start' }); el.setAttribute('tabindex', '-1'); el.focus({ preventScroll: true });
+  };
+  CM.acts['pub-reprocann'] = function () { CM.pub.cat = 'reprocann'; CM.pub.q = ''; render(); var el = document.getElementById('pub-catalogo'); if (el) el.scrollIntoView({ block: 'start' }); };
+  document.addEventListener('input', function (ev) {
+    if (ev.target.id !== 'pubQ') return;
+    CM.pub.q = ev.target.value; var pos = ev.target.selectionStart; render();
+    var n = document.getElementById('pubQ'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { /* nada */ } }
+  });
+  CM.acts['pub-det'] = function (t) { detalle(t.getAttribute('data-id')); };
+  function detalle(id) {
+    var cfg = CM.db.menu.pub, it = cfg.items.filter(function (y) { return y.id === id && y.activo; })[0]; if (!it) return;
+    var L = lang(), t = T[L], x = TX[L], inc = lista((it.inc && (it.inc[L] || it.inc.es)) || ''), dur = it.dur && (it.dur[L] || it.dur.es);
+    var url = urlPub() + '/' + id;
+    var msg = (L === 'en' ? 'Hello, I would like to ask about: ' : 'Hola, quiero consultar por: ') + tr(cfg, it, 'n');
+    CM.modal.open({ title: tr(cfg, it, 'n'), wide: true,
+      body: '<div class="pub-art pub-artm">' + artSvg(it.cat, 2) + '</div><p>' + esc(tr(cfg, it, 'd')) + '</p>' + (dur ? '<p class="pub-dur">' + CM.icon('clock') + '<b>' + x.dur + ':</b> ' + esc(dur) + '</p>' : '') +
+        (inc.length ? '<h3>' + x.incluye + '</h3><ul class="pub-inc">' + inc.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' : '') +
+        '<p><b>' + (it.cent > 0 ? t.aporte + ': ' + esc(money(it.cent)) : t.sin) + '</b></p><p class="hint">' + t.aviso + '</p>',
+      footer: '<button class="btn" data-act="modal-close">' + x.cerrar + '</button><button class="btn" data-act="pub-copiar" data-v="' + esc(url) + '">' + CM.icon('copy') + (L === 'en' ? 'Copy link' : 'Copiar enlace') + '</button><a class="btn" href="https://wa.me/' + cfg.wa + '?text=' + encodeURIComponent(msg) + '" target="_blank" rel="noopener noreferrer">' + x.consultarWa + '</a><button class="btn pri" data-act="pub-add-cerrar" data-id="' + esc(id) + '">' + t.agregar + '</button>' });
+  }
+  CM.acts['pub-add-cerrar'] = function (t) { var id = t.getAttribute('data-id'); CM.pub.cart[id] = (CM.pub.cart[id] || 0) + 1; CM.modal.close(true); render(); CM.toast(lang() === 'en' ? 'Added to your inquiry.' : 'Agregado a tu consulta.'); };
   CM.acts['pub-lang'] = function (t) { CM.pub.lang = t.getAttribute('data-v'); render(); };
   CM.acts['pub-cat'] = function (t) { CM.pub.cat = t.getAttribute('data-v'); render(); };
   CM.acts['pub-add'] = function (t) { var id = t.getAttribute('data-id'); CM.pub.cart[id] = (CM.pub.cart[id] || 0) + 1; render(); };
@@ -171,6 +237,7 @@
       if (scrollH) { g.removeEventListener('scroll', scrollH); scrollH = null; }
       document.documentElement.lang = r.v === 'm' ? lang() : 'es-AR';
       if (r.v !== 'm') return;
+      if (r.a && CM.pub.abierto !== r.a) { CM.pub.abierto = r.a; setTimeout(function () { detalle(r.a); }, 0); } else if (!r.a) CM.pub.abierto = '';
       var cfg = CM.db.menu.pub, p = $('#pubRot'), rot = cfg.frases.filter(function (f) { return f.activa && f.tipo !== 'legal'; });
       var rm = g.matchMedia && g.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (p && cfg.rotar && rot.length > 1 && !rm) {
@@ -188,7 +255,7 @@
      ADMINISTRACIÓN DEL MENÚ PÚBLICO
      =================================================================== */
   CM.mp = { tab: 'ident' };
-  var TABS = [['ident', 'Identidad y horarios'], ['frases', 'Frases y leyendas'], ['cat', 'Catálogo'], ['bloques', 'Bloques y orden'], ['club', 'Club y altas'], ['wifi', 'Wi-Fi'], ['red', 'Ubicación y redes'], ['acc', 'Compartir y acceso'], ['pub', 'Vista previa y publicación']];
+  var TABS = [['ident', 'Identidad y horarios'], ['frases', 'Frases y leyendas'], ['cat', 'Catálogo'], ['cont', 'Portada y contenidos'], ['bloques', 'Bloques y orden'], ['club', 'Club y altas'], ['wifi', 'Wi-Fi'], ['red', 'Ubicación y redes'], ['acc', 'Compartir y acceso'], ['pub', 'Vista previa y publicación']];
   var DIAS = [[1, 'Lunes'], [2, 'Martes'], [3, 'Miércoles'], [4, 'Jueves'], [5, 'Viernes'], [6, 'Sábado'], [0, 'Domingo']];
   function sinPublicar() { var m = CM.db.menu; return JSON.stringify(m.draft) !== JSON.stringify(m.pub); }
   function dr() { return CM.db.menu.draft; }
@@ -218,8 +285,22 @@
           var faltaEn = !(i.en && i.en.n);
           return '<tr><td>' + esc(i.cat) + '</td><td>' + esc(i.es.n) + (faltaEn ? '<br><small class="hint" style="color:var(--warn)">Falta la traducción al inglés</small>' : '') + '</td><td class="n">' + (i.cent ? esc(money(i.cent)) : 'Sin aporte') + '</td><td>' + (i.activo ? '<span class="pill p-ok">Publicado</span>' : '<span class="pill p-mu">Oculto</span>') + '</td><td class="acts"><button class="btn sm" data-act="it-edit" data-id="' + esc(i.id) + '">Editar</button><button class="btn sm" data-act="it-toggle" data-id="' + esc(i.id) + '">' + (i.activo ? 'Ocultar' : 'Mostrar') + '</button></td></tr>';
         }).join('') + '</tbody></table></div></section></div>';
+    } else if (f.tab === 'cont') {
+      CM.menuFill(d);
+      var P = d.portada, pr = function (L, k) { return esc((P[L] || {})[k] || ''); }, pl = function (arr, k1, k2, L) { return esc(arr.map(function (z) { var o = z[L] || {}; return (o[k1] || '') + ' | ' + (o[k2] || ''); }).join('\n')); };
+      body = '<div class="grid g2"><form class="card f" data-form="mp-portada" novalidate><h2>Portada</h2><div class="f f2">' +
+        fl('Antetítulo (español)', '<input class="in" name="k_es" value="' + pr('es', 'kicker') + '">') + fl('Kicker (English)', '<input class="in" name="k_en" value="' + pr('en', 'kicker') + '">') +
+        fl('Título (español) *', '<input class="in" name="t_es" value="' + pr('es', 'titulo') + '">') + fl('Title (English)', '<input class="in" name="t_en" value="' + pr('en', 'titulo') + '">') +
+        fl('Bajada (español)', '<textarea class="in" name="s_es">' + pr('es', 'sub') + '</textarea>') + fl('Subtitle (English)', '<textarea class="in" name="s_en">' + pr('en', 'sub') + '</textarea>') +
+        fl('Botón principal (español)', '<input class="in" name="c1_es" value="' + pr('es', 'cta1') + '">') + fl('Main button (English)', '<input class="in" name="c1_en" value="' + pr('en', 'cta1') + '">') +
+        fl('Botón de WhatsApp (español)', '<input class="in" name="c2_es" value="' + pr('es', 'cta2') + '">') + fl('WhatsApp button (English)', '<input class="in" name="c2_en" value="' + pr('en', 'cta2') + '">') +
+        '</div><p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar en borrador</button></div></form>' +
+        '<div><form class="card f" data-form="mp-pasos" novalidate><h2>Cómo funciona</h2><p class="hint">Un paso por línea: <code>Título | Texto</code>. Las dos listas deben tener la misma cantidad de líneas.</p>' + fl('Pasos (español)', '<textarea class="in tall" name="es">' + pl(d.pasos, 't', 'd', 'es') + '</textarea>') + fl('Steps (English)', '<textarea class="in tall" name="en">' + pl(d.pasos, 't', 'd', 'en') + '</textarea>') + '<p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar en borrador</button></div></form>' +
+        '<form class="card f" data-form="mp-faq" novalidate style="margin-top:14px"><h2>Preguntas frecuentes</h2><p class="hint">Una por línea: <code>Pregunta | Respuesta</code>.</p>' + fl('Preguntas (español)', '<textarea class="in tall" name="es">' + pl(d.faq, 'q', 'a', 'es') + '</textarea>') + fl('Questions (English)', '<textarea class="in tall" name="en">' + pl(d.faq, 'q', 'a', 'en') + '</textarea>') + '<p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar en borrador</button></div></form></div></div>' +
+        '<section class="card" style="margin-top:14px"><div class="row sp"><h2>Agenda de talleres y cursos</h2><button class="btn pri sm" data-act="ag-nueva">' + CM.icon('plus') + 'Nueva fecha</button></div><div class="tw"><table><thead><tr><th>Fecha</th><th>Actividad</th><th>Modalidad y lugar</th><th class="n">Cupos</th><th>Estado</th><th></th></tr></thead><tbody>' +
+        (d.agenda.length ? d.agenda.slice().sort(function (u, v) { return u.fecha.localeCompare(v.fecha); }).map(function (g1) { var it = d.items.filter(function (y) { return y.id === g1.item; })[0]; return '<tr><td>' + esc(CM.fmtFecha(g1.fecha)) + ' ' + esc(g1.hora) + '</td><td>' + esc(it ? it.es.n : g1.item) + '</td><td>' + esc(g1.modalidad === 'virtual' ? 'Virtual' : 'Presencial') + ' · ' + esc(g1.lugar) + '</td><td class="n">' + esc(g1.cupo) + '</td><td>' + (g1.fecha < CM.hoy() ? '<span class="pill p-mu">Pasada (no se muestra)</span>' : g1.activo ? '<span class="pill p-ok">Publicada</span>' : '<span class="pill p-mu">Oculta</span>') + '</td><td class="acts"><button class="btn sm" data-act="ag-edit" data-id="' + esc(g1.id) + '">Editar</button><button class="btn sm" data-act="ag-toggle" data-id="' + esc(g1.id) + '">' + (g1.activo ? 'Ocultar' : 'Mostrar') + '</button></td></tr>'; }).join('') : '<tr><td colspan="6"><div class="empty">Sin fechas cargadas.</div></td></tr>') + '</tbody></table></div><p class="hint">Las fechas pasadas dejan de mostrarse solas. Inscribirse es una solicitud: el cupo se confirma por WhatsApp.</p></section>';
     } else if (f.tab === 'bloques') {
-      var NB = { catalogo: 'Catálogo (siempre visible)', club: 'Alta al club de socios/as', wifi: 'Wi-Fi para invitados', ubic: 'Ubicación y reseñas', redes: 'Redes sociales' };
+      var NB = { catalogo: 'Catálogo (siempre visible)', agenda: 'Agenda de talleres y cursos', pasos: 'Cómo funciona', faq: 'Preguntas frecuentes', club: 'Alta al club de socios/as', wifi: 'Wi-Fi para invitados', ubic: 'Ubicación y reseñas', redes: 'Redes sociales' };
       body = '<section class="card"><h2>Bloques y orden</h2><ul class="tl">' + d.orden.map(function (b, i) {
         var on = b === 'catalogo' ? true : d.bloques[b];
         return '<li class="rubrow"><span><b>' + esc(NB[b]) + '</b> ' + (on ? '<span class="pill p-ok">Activo</span>' : '<span class="pill p-mu">Apagado</span>') + '</span><span class="acts">' + (b === 'catalogo' ? '' : '<button class="btn sm" data-act="bl-toggle" data-v="' + b + '">' + (on ? 'Apagar' : 'Encender') + '</button>') + '<button class="btn sm" data-act="bl-mov" data-v="' + b + '" data-d="-1"' + (i === 0 ? ' disabled' : '') + ' aria-label="Subir ' + esc(NB[b]) + '">' + CM.icon('up') + '</button><button class="btn sm" data-act="bl-mov" data-v="' + b + '" data-d="1"' + (i === d.orden.length - 1 ? ' disabled' : '') + ' aria-label="Bajar ' + esc(NB[b]) + '">↓</button></span></li>';
@@ -315,7 +396,7 @@
   function modalItem(x) {
     var edit = !!x, d = dr();
     CM.modal.open({ title: edit ? 'Editar' : 'Nuevo taller, curso o servicio', wide: true, body: '<form id="fIT" data-form="mp-item" class="f" autocomplete="off" novalidate><input type="hidden" name="id" value="' + esc(edit ? x.id : '') + '"><div class="f f2">' + fl('Rubro', '<select class="in" name="cat">' + d.cats.map(function (c) { return opt(c.id, c.es, edit && x.cat === c.id); }).join('') + '</select>') + fl('Aporte sugerido (en pesos; vacío = sin aporte)', '<input class="in num" name="cent" inputmode="decimal" placeholder="0" value="' + esc(edit && x.cent ? (x.cent / 100).toString().replace('.', ',') : '') + '">') + '</div>' +
-      '<div class="f f2">' + fl('Nombre (español) *', '<input class="in" name="nes" value="' + esc(edit ? x.es.n : '') + '">') + fl('Name (English)', '<input class="in" name="nen" value="' + esc(edit && x.en ? x.en.n : '') + '">') + fl('Descripción (español)', '<textarea class="in" name="des">' + esc(edit ? x.es.d : '') + '</textarea>') + fl('Description (English)', '<textarea class="in" name="den">' + esc(edit && x.en ? x.en.d : '') + '</textarea>') + '</div><p class="err" role="alert" data-err></p></form>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fIT">Guardar</button>' });
+      '<div class="f f2">' + fl('Nombre (español) *', '<input class="in" name="nes" value="' + esc(edit ? x.es.n : '') + '">') + fl('Name (English)', '<input class="in" name="nen" value="' + esc(edit && x.en ? x.en.n : '') + '">') + fl('Descripción (español)', '<textarea class="in" name="des">' + esc(edit ? x.es.d : '') + '</textarea>') + fl('Description (English)', '<textarea class="in" name="den">' + esc(edit && x.en ? x.en.d : '') + '</textarea>') + '</div><div class="f f2">' + fl('Duración (español)', '<input class="in" name="dures" value="' + esc(edit && x.dur ? x.dur.es : '') + '">') + fl('Duration (English)', '<input class="in" name="duren" value="' + esc(edit && x.dur ? x.dur.en : '') + '">') + fl('Qué incluye (una línea por punto, español)', '<textarea class="in" name="incs">' + esc(edit && x.inc ? x.inc.es : '') + '</textarea>') + fl('What is included (one line per point, English)', '<textarea class="in" name="incn">' + esc(edit && x.inc ? x.inc.en : '') + '</textarea>') + '</div><p class="err" role="alert" data-err></p></form>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fIT">Guardar</button>' });
   }
   CM.acts['it-nuevo'] = function () { if (perm()) modalItem(null); };
   CM.acts['it-edit'] = function (t) { if (perm()) modalItem(dr().items.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0]); };
@@ -324,9 +405,51 @@
     if (e.nes.value.trim().length < 3) return fail(f, 'nes', 'Escribí el nombre en español.');
     if (isNaN(cent)) return fail(f, 'cent', 'Importe inválido.');
     var x = e.id.value ? dr().items.filter(function (y) { return y.id === e.id.value; })[0] : null;
-    var o = { cat: e.cat.value, cent: cent, es: { n: e.nes.value.trim(), d: e.des.value.trim() }, en: { n: e.nen.value.trim(), d: e.den.value.trim() } };
-    if (x) { x.cat = o.cat; x.cent = o.cent; x.es = o.es; x.en = o.en; } else { o.id = 'P' + (dr().items.length + 1 + Math.floor(Math.random() * 900)); o.activo = true; dr().items.push(o); }
+    var o = { cat: e.cat.value, cent: cent, es: { n: e.nes.value.trim(), d: e.des.value.trim() }, en: { n: e.nen.value.trim(), d: e.den.value.trim() }, dur: { es: e.dures.value.trim(), en: e.duren.value.trim() }, inc: { es: e.incs.value.trim(), en: e.incn.value.trim() } };
+    if (x) { x.cat = o.cat; x.cent = o.cent; x.es = o.es; x.en = o.en; x.dur = o.dur; x.inc = o.inc; } else { o.id = 'P' + (dr().items.length + 1 + Math.floor(Math.random() * 900)); o.activo = true; dr().items.push(o); }
     CM.modal.close(true); guardarBorrador('Ítem del menú guardado');
+  };
+
+  CM.forms['mp-portada'] = function (f) {
+    if (!perm()) return; var e = f.elements, d = dr(); CM.menuFill(d);
+    if (e.t_es.value.trim().length < 4) return fail(f, 't_es', 'Escribí el título en español.');
+    ['es', 'en'].forEach(function (L) { d.portada[L] = { kicker: e['k_' + L].value.trim(), titulo: e['t_' + L].value.trim() || e.t_es.value.trim(), sub: e['s_' + L].value.trim(), cta1: e['c1_' + L].value.trim() || e.c1_es.value.trim(), cta2: e['c2_' + L].value.trim() || e.c2_es.value.trim() }; });
+    guardarBorrador('Portada');
+  };
+  function parLineas(txt) { return String(txt || '').split('\n').map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) { var i = l.indexOf('|'); return i < 0 ? null : [l.slice(0, i).trim(), l.slice(i + 1).trim()]; }); }
+  function formLista(clave, k1, k2, nombre) {
+    return function (f) {
+      if (!perm()) return; var d = dr(), es = parLineas(f.elements.es.value), en = parLineas(f.elements.en.value);
+      if (es.some(function (x) { return !x || !x[0] || !x[1]; })) return fail(f, 'es', 'Cada línea en español tiene que ser «Título | Texto» y no puede quedar vacía.');
+      if (en.some(function (x) { return !x || !x[0] || !x[1]; })) return fail(f, 'en', 'Cada línea en inglés tiene que ser «Title | Text».');
+      if (en.length && en.length !== es.length) return fail(f, 'en', 'La lista en inglés tiene ' + en.length + ' líneas y la de español ' + es.length + '. Tienen que coincidir.');
+      if (es.length > 12) return fail(f, 'es', 'El máximo es 12.');
+      d[clave] = es.map(function (x, i) { var o = { es: {}, en: {} }; o.es[k1] = x[0]; o.es[k2] = x[1]; o.en[k1] = en[i] ? en[i][0] : x[0]; o.en[k2] = en[i] ? en[i][1] : x[1]; return o; });
+      guardarBorrador(nombre);
+    };
+  }
+  CM.forms['mp-pasos'] = formLista('pasos', 't', 'd', 'Cómo funciona');
+  CM.forms['mp-faq'] = formLista('faq', 'q', 'a', 'Preguntas frecuentes');
+  function modalAg(x) {
+    var d = dr(), edit = !!x;
+    CM.modal.open({ title: edit ? 'Editar fecha' : 'Nueva fecha', body: '<form id="fAG" data-form="mp-ag" class="f" autocomplete="off" novalidate><input type="hidden" name="id" value="' + esc(edit ? x.id : '') + '"><div class="f f2">' + fl('Actividad *', '<select class="in" name="actv">' + d.items.filter(function (i) { return i.cat !== 'reprocann'; }).map(function (i) { return opt(i.id, i.es.n, edit && x.item === i.id); }).join('') + '</select>') +
+      fl('Fecha *', '<input class="in" type="date" name="fecha" min="' + CM.hoy() + '" value="' + esc(edit ? x.fecha : '') + '">') + fl('Hora *', '<input class="in" type="time" name="hora" value="' + esc(edit ? x.hora : '18:00') + '">') +
+      fl('Modalidad', '<select class="in" name="mod">' + opt('presencial', 'Presencial', !edit || x.modalidad === 'presencial') + opt('virtual', 'Virtual', edit && x.modalidad === 'virtual') + '</select>') + fl('Lugar *', '<input class="in" name="lugar" value="' + esc(edit ? x.lugar : 'Sede de la fundación') + '">') + fl('Cupos *', '<input class="in num" name="cupo" inputmode="numeric" placeholder="0" value="' + esc(edit ? x.cupo : '') + '">') + '</div><p class="err" role="alert" data-err></p></form>',
+      footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fAG">Guardar</button>' });
+  }
+  CM.acts['ag-nueva'] = function () { if (perm()) modalAg(null); };
+  CM.acts['ag-edit'] = function (t) { if (perm()) modalAg(dr().agenda.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0]); };
+  CM.acts['ag-toggle'] = function (t) { if (!perm()) return; var x = dr().agenda.filter(function (y) { return y.id === t.getAttribute('data-id'); })[0]; x.activo = !x.activo; guardarBorrador('Fecha de agenda ' + (x.activo ? 'publicada' : 'oculta') + ': ' + x.id); };
+  CM.forms['mp-ag'] = function (f) {
+    var e = f.elements, cupo = parseInt(e.cupo.value, 10);
+    if (!e.fecha.value || e.fecha.value < CM.hoy() || !/^\d{4}-/.test(e.fecha.value)) return fail(f, 'fecha', 'Elegí una fecha de hoy en adelante.');
+    if (!e.hora.value) return fail(f, 'hora', 'Elegí la hora.');
+    if (e.lugar.value.trim().length < 3) return fail(f, 'lugar', 'Escribí el lugar.');
+    if (isNaN(cupo) || cupo < 1 || cupo > 500) return fail(f, 'cupo', 'Los cupos van de 1 a 500.');
+    var o = { item: e.actv.value, fecha: e.fecha.value, hora: e.hora.value, modalidad: e.mod.value, lugar: e.lugar.value.trim(), cupo: cupo };
+    var x = e.id.value ? dr().agenda.filter(function (y) { return y.id === e.id.value; })[0] : null;
+    if (x) Object.keys(o).forEach(function (k) { x[k] = o[k]; }); else { o.id = 'AG' + (dr().agenda.length + 1 + Math.floor(Math.random() * 900)); o.activo = true; dr().agenda.push(o); }
+    CM.modal.close(true); guardarBorrador('Agenda');
   };
   CM.acts['it-toggle'] = function (t) { if (!perm()) return; var x = dr().items.filter(function (y) { return y.id === t.getAttribute('data-id'); })[0]; x.activo = !x.activo; guardarBorrador('Ítem ' + (x.activo ? 'publicado' : 'oculto') + ': ' + x.id); };
   CM.acts['bl-toggle'] = function (t) { if (!perm()) return; var b = t.getAttribute('data-v'); dr().bloques[b] = !dr().bloques[b]; guardarBorrador('Bloque ' + b + (dr().bloques[b] ? ' encendido' : ' apagado')); };
