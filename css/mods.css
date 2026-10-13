@@ -196,3 +196,13 @@ textarea.in.tall{min-height:160px}
 .pub-hero-bg{left:auto;width:52%;opacity:.28;-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%);mask-image:linear-gradient(90deg,transparent,#000 40%)}
 @media (max-width:640px){.pub-hero-bg{width:100%;opacity:.14}}
 .pub-artm{max-height:190px}.pub-artm svg{max-height:190px}
+
+/* ingreso y sesión */
+.login{max-width:440px;margin:28px auto;display:grid;gap:12px}
+.pwrow{display:flex;gap:8px;align-items:center}.pwrow .in{flex:1}
+.linkbtn{background:none;border:0;color:var(--ac);cursor:pointer;text-decoration:underline;padding:6px 0;min-height:44px;font:inherit}
+.userchip{display:flex;align-items:center;gap:8px}
+.userchip .uc-n{display:grid;line-height:1.15;text-align:right}.userchip small{color:var(--mu);font-size:11px}
+.pub-acc{flex:none;white-space:nowrap}
+@media (max-width:640px){.userchip .uc-n{display:none}.pub-acc{padding:0 10px;font-size:12px}}
+@media (max-width:420px){.pub-h{gap:6px}.pub-logo img{height:30px}.pub-lang button{min-width:40px;padding:0 6px}.pub-acc{padding:0 8px;font-size:11px;min-height:40px}.pub-logo{flex:0 1 auto;min-width:0;overflow:hidden}.pub-logo img{max-width:100%;object-fit:contain}.pub-nav{min-width:0;flex:1 1 0}}

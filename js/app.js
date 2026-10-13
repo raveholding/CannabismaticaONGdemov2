@@ -78,6 +78,7 @@
     var r = ruta();
     if (!VIEWS[r.v]) r = { v: 'inicio', a: '' };
     var pub = r.v === 'm' || r.v === 'acceso';
+    if (!pub && CM.sesionOk && !CM.sesionOk()) { g.location.hash = '#/m'; return; }
     document.body.classList.toggle('pub', pub);
     if (CM.rolSel) CM.rolSel();
     renderNav(r.v);
@@ -919,7 +920,7 @@
   /* ---------- arranque (lo dispara js/boot.js cuando cargaron todos los módulos) ---------- */
   CM.boot = function () {
     CM.init();
-    if (!g.location.hash) g.location.hash = '#/inicio';
+    if (!g.location.hash || g.location.hash === '#/inicio' && !(CM.sesionOk && CM.sesionOk())) g.location.hash = (CM.sesionOk && CM.sesionOk()) ? '#/inicio' : '#/m';
     render();
   };
 })(window);

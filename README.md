@@ -35,6 +35,8 @@ Terminología de ONG en toda la interfaz: paciente/socio, dispensación, aporte 
 
 ## Cómo probarla
 
+- **Primero se abre el menú público** (como lo ve la gente). Para el personal: botón **Acceso del equipo** (o tocar 5 veces el logo) → correo y clave. Usuarios de ejemplo: `admin@`, `ana@` (supervisora), `beto@` (mostrador), `cele@` (operador) `example.com`; clave de demostración compartida **Demo2026!** (sólo para la demo, se muestra rotulada en la pantalla de ingreso). 5 intentos fallidos bloquean 2 minutos; las claves temporales obligan a elegir una propia. «Salir» vuelve al menú.
+- Contacto de la ONG en el menú: WhatsApp 3876390362.
 - Entrá a la URL de GitHub Pages del repositorio (o abrí `index.html` desde un servidor local: `python3 -m http.server`).
 - Pacientes de ejemplo: **99000001** (válido), **99000002** (vence en 25 días), **99000003** (en trámite), **99000004** (vencido: la dispensación se bloquea), **99000005**, **99000006** (historia pendiente).
 - *Ajustes → Restablecer datos de ejemplo* vuelve todo al inicio.
@@ -49,6 +51,7 @@ Terminología de ONG en toda la interfaz: paciente/socio, dispensación, aporte 
 - Las reglas de bloqueo y el tope mensual de flores son configurables y no representan una regla legal.
 
 - Nube (Supabase), pagos (Mercado Pago), Google, correo/WhatsApp, lector biométrico, impresoras y balanzas **no están conectados**: la demo lo dice en pantalla. Fotos reales con zoom (las tarjetas usan ilustraciones propias), mapa embebido y reseñas de Google no están en esta demo.
+- El ingreso (usuarios y claves con hash) y los roles funcionan sólo en el navegador: es una demostración, no seguridad real. En el sistema real se validan en el servidor.
 - Los roles y permisos se simulan en el navegador; en el sistema real se validan en el servidor.
 
 ## Estructura

@@ -14,12 +14,19 @@
 
   /* ---------- selector de rol (simulación) ---------- */
   CM.rolSel = function () {
-    var s = $('#rolSel'); if (!s || !CM.db) return;
-    s.innerHTML = Object.keys(CM.ROLES).map(function (k) { return opt(k, 'Rol: ' + CM.ROLES[k], CM.db.cfg.rol === k); }).join('');
+    var s = $('#rolSel'), chip = $('#userChip'); if (!s || !CM.db) return;
+    var u = CM.usuarioActual && CM.usuarioActual();
+    if (chip) {
+      chip.hidden = !u;
+      chip.innerHTML = u ? '<span class="uc-n"><b>' + esc(u.nombre) + '</b><small>' + esc(CM.ROLES[u.rol]) + '</small></span><button type="button" class="btn sm" data-act="mi-clave">Mi clave</button><button type="button" class="btn sm" data-act="salir">Salir</button>' : '';
+    }
+    var esAdmin = !!(u && u.rol === 'admin');
+    s.hidden = !esAdmin; s.previousElementSibling && (s.previousElementSibling.hidden = !esAdmin);
+    s.innerHTML = Object.keys(CM.ROLES).map(function (k) { return opt(k, 'Ver como: ' + CM.ROLES[k], CM.db.cfg.rol === k); }).join('');
   };
   document.addEventListener('change', function (ev) {
     if (ev.target.id !== 'rolSel') return;
-    CM.db.cfg.rol = ev.target.value; CM.audit('Cambio de rol (simulación)', 'Rol activo: ' + CM.ROLES[ev.target.value]); CM.save(); render(); CM.toast('Rol activo: ' + CM.ROLES[ev.target.value] + '.');
+    CM.db.cfg.rol = ev.target.value; CM.audit('Vista como otro rol (simulación del administrador)', 'Rol activo: ' + CM.ROLES[ev.target.value]); CM.save(); render(); CM.toast('Rol activo: ' + CM.ROLES[ev.target.value] + '.');
   });
 
   /* ===================================================================
@@ -441,7 +448,7 @@
     return pageH('Usuarios y permisos', 'Quién puede hacer qué. Cambiá el rol activo para ver cómo se comporta el sistema. <b>Simulación:</b> en el sistema real los permisos se validan también en el servidor.',
       '<button class="btn pri" data-act="us-nuevo">' + CM.icon('plus') + 'Nuevo usuario</button>') +
       '<section class="card"><h2>Usuarios</h2><div class="tw"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' + db.users.map(function (u) {
-        return '<tr' + (u.activo ? '' : ' class="anulada"') + '><td><b>' + esc(u.nombre) + '</b></td><td>' + esc(u.correo) + '</td><td>' + esc(CM.ROLES[u.rol]) + '</td><td>' + (u.activo ? '<span class="pill p-ok">Activo</span>' : '<span class="pill p-mu">Baja</span>') + '</td><td class="acts"><button class="btn sm" data-act="us-edit" data-id="' + esc(u.id) + '">Editar</button><button class="btn sm" data-act="us-clave" data-id="' + esc(u.id) + '">Clave temporal</button><button class="btn sm" data-act="us-actuar" data-id="' + esc(u.id) + '">Usar este rol</button></td></tr>';
+        return '<tr' + (u.activo ? '' : ' class="anulada"') + '><td><b>' + esc(u.nombre) + '</b></td><td>' + esc(u.correo) + '</td><td>' + esc(CM.ROLES[u.rol]) + '</td><td>' + (u.activo ? '<span class="pill p-ok">Activo</span>' : '<span class="pill p-mu">Baja</span>') + '</td><td class="acts"><button class="btn sm" data-act="us-edit" data-id="' + esc(u.id) + '">Editar</button><button class="btn sm" data-act="us-clave" data-id="' + esc(u.id) + '">Clave temporal</button></td></tr>';
       }).join('') + '</tbody></table></div></section>' +
       '<section class="card" style="margin-top:14px"><h2>Matriz de permisos</h2><p class="hint">Niveles: sólo ver · operar (cargar) · editar · administrar (anular, cerrar, configurar). El administrador siempre puede todo, para no quedar bloqueado.</p><form data-form="perms"><div class="tw"><table><thead><tr><th>Módulo</th>' + rl.map(function (r) { return '<th>' + esc(CM.ROLES[r]) + '</th>'; }).join('') + '</tr></thead><tbody>' + CM.MODS.map(function (m) {
         return '<tr><td>' + esc(m[1]) + '</td>' + rl.map(function (r) {
@@ -475,14 +482,15 @@
     if (u) {
       if (u.rol === 'admin' && (e.rol.value !== 'admin' || !e.activo.checked) && CM.db.users.filter(function (x) { return x.rol === 'admin' && x.activo; }).length < 2) return fail(f, 'rol', 'Tiene que quedar al menos un administrador activo.');
       u.nombre = n; u.correo = c; u.rol = e.rol.value; u.activo = e.activo.checked; CM.audit('Usuario editado', u.id + ' · ' + n + ' · ' + u.rol);
-    } else { CM.db.users.push({ id: 'U-' + (CM.db.users.length + 1 + Math.floor(Math.random() * 90)), nombre: n, correo: c, rol: e.rol.value, activo: true }); CM.audit('Usuario nuevo', n + ' · ' + e.rol.value); }
+    } else { var nu = { id: 'U-' + (CM.db.users.length + 1 + Math.floor(Math.random() * 90)), nombre: n, correo: c, rol: e.rol.value, activo: true }; if (CM.db.users.some(function (x) { return String(x.correo).toLowerCase() === c.toLowerCase(); })) return fail(f, 'correo', 'Ya existe un usuario con ese correo.'); var tmp = CM.sha256(nu.id + Date.now() + Math.random()).slice(0, 8).toUpperCase() + 'a1'; CM.setPw(nu, tmp, true); CM.db.users.push(nu); CM.audit('Usuario nuevo', n + ' · ' + e.rol.value); CM.save(); CM.modal.close(true); render(); CM.modal.open({ title: 'Usuario creado', body: '<p>Correo: <b>' + esc(c) + '</b></p><p>Clave temporal: <code style="font-size:1.2rem">' + esc(tmp) + '</code></p><div class="note info">Se muestra una sola vez. Al ingresar tiene que elegir una clave propia.</div>', footer: '<button class="btn pri" data-act="modal-close">Listo</button>' }); return; }
     CM.save(); CM.modal.close(true); render();
   };
   CM.acts['us-clave'] = function (t) {
     if (!CM.need('usuarios', 'admin')) return;
-    var u = CM.db.users.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0], cod = CM.sha256(u.id + Date.now()).slice(0, 8).toUpperCase();
-    CM.audit('Clave temporal', 'Generada para ' + u.nombre); CM.save();
-    CM.modal.open({ title: 'Clave temporal', body: '<p>Clave temporal para <b>' + esc(u.nombre) + '</b>: <code style="font-size:1.2rem">' + esc(cod) + '</code></p><div class="note info">Demostración: no se guarda ninguna contraseña real. En el sistema real la persona debe elegir una clave propia al ingresar.</div>', footer: '<button class="btn pri" data-act="modal-close">Listo</button>' });
+    var u = CM.db.users.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0];
+    var cod = CM.sha256(u.id + Date.now() + Math.random()).slice(0, 8).toUpperCase() + 'a1';
+    CM.setPw(u, cod, true); CM.audit('Clave temporal', 'Generada para ' + u.nombre); CM.save();
+    CM.modal.open({ title: 'Clave temporal', body: '<p>Clave temporal para <b>' + esc(u.nombre) + '</b>: <code style="font-size:1.2rem">' + esc(cod) + '</code></p><div class="note info">Se muestra una sola vez. Al ingresar con ella, la persona tiene que elegir una clave propia.</div>', footer: '<button class="btn pri" data-act="modal-close">Listo</button>' });
   };
 
   /* ===================================================================

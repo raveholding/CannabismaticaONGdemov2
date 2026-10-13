@@ -117,6 +117,49 @@
     return { ok: !malos.length, n: n, malos: malos };
   };
 
+
+  /* ---------- ingreso del equipo (demo): clave con sal + SHA-256, sesión en la pestaña, bloqueo por intentos ---------- */
+  CM.CLAVE_DEMO = 'Demo2026!';
+  CM.hashPw = function (salt, pw) { return CM.sha256('cm-pw|' + salt + '|' + pw); };
+  CM.setPw = function (u, pw, cambiar) { u.salt = CM.sha256('s|' + u.id + '|' + Math.random() + Date.now()).slice(0, 16); u.pw = CM.hashPw(u.salt, pw); u.cambiar = !!cambiar; };
+  CM.claveValida = function (pw) { return typeof pw === 'string' && pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw); };
+  var memSes = null;
+  CM.ses = {
+    get: function () { try { return window.sessionStorage.getItem('cmv2_ses') || memSes; } catch (e) { return memSes; } },
+    set: function (v) { memSes = v; try { window.sessionStorage.setItem('cmv2_ses', v); } catch (e) { /* memoria */ } },
+    clear: function () { memSes = null; try { window.sessionStorage.removeItem('cmv2_ses'); } catch (e) { /* nada */ } }
+  };
+  CM.usuarioActual = function () {
+    var id = CM.ses.get(); if (!id || !CM.db || !CM.db.users) return null;
+    var u = CM.db.users.filter(function (x) { return x.id === id && x.activo; })[0];
+    return u || null;
+  };
+  CM.sesionOk = function () {
+    var u = CM.usuarioActual(); if (!u) return false;
+    if (u.rol !== 'admin') { CM.db.cfg.rol = u.rol; }
+    CM.db.cfg.operador = u.nombre; return true;
+  };
+  CM.login = function (correo, clave) {
+    var db = CM.db, c = String(correo || '').trim().toLowerCase(), ahora = Date.now();
+    db.lock = db.lock || {};
+    var L = db.lock[c] || { n: 0, hasta: 0 };
+    if (L.hasta > ahora) return { err: 'Demasiados intentos. Esperá ' + Math.ceil((L.hasta - ahora) / 1000) + ' segundos e intentá de nuevo.' };
+    var u = db.users.filter(function (x) { return String(x.correo).toLowerCase() === c; })[0];
+    if (!u || !u.activo || !u.pw || CM.hashPw(u.salt, String(clave || '')) !== u.pw) {
+      L.n++; if (L.n >= 5) { L.hasta = ahora + 120000; L.n = 0; }
+      db.lock[c] = L; CM.audit('Ingreso fallido', 'Intento con el correo ' + (c.slice(0, 3) + '***')); CM.save();
+      return { err: 'Usuario o clave incorrectos.' };
+    }
+    delete db.lock[c];
+    CM.ses.set(u.id); db.cfg.rol = u.rol; db.cfg.operador = u.nombre;
+    CM.audit('Ingreso al sistema', u.nombre + ' · rol ' + u.rol); CM.save();
+    return { ok: u };
+  };
+  CM.logout = function () {
+    var u = CM.usuarioActual(); if (u) { CM.audit('Salida del sistema', u.nombre); CM.save(); }
+    CM.ses.clear();
+  };
+
   /* ---------- caja ---------- */
   CM.cajaAbierta = function () { var c = CM.db.cajas.filter(function (x) { return x.estado === 'abierta'; }); return c.length ? c[c.length - 1] : null; };
   CM.rubro = function (id) { for (var i = 0; i < CM.db.rubros.length; i++) if (CM.db.rubros[i].id === id) return CM.db.rubros[i]; return null; };
@@ -330,7 +373,7 @@
     return {
       nombre: 'Cannabismatica I+D',
       eslogan: { es: 'Acompañamiento, información y cuidado para pacientes', en: 'Support, information and care for patients' },
-      direccion: 'Islas Malvinas 137', localidad: 'Salta Capital', wa: '5493870000000', email: 'cannabismatica@gmail.com',
+      direccion: 'Islas Malvinas 137', localidad: 'Salta Capital', wa: '5493876390362', email: 'cannabismatica@gmail.com',
       horarios: { 1: ['09:00', '18:00'], 2: ['09:00', '18:00'], 3: ['09:00', '18:00'], 4: ['09:00', '18:00'], 5: ['09:00', '18:00'], 6: ['09:00', '13:00'], 0: null },
       mostrarHorario: true,
       frases: [
@@ -366,7 +409,7 @@
         { id: 'RS2', label: 'WhatsApp', url: 'wa', activa: true },
         { id: 'RS3', label: 'Facebook', url: '', activa: false }
       ],
-      oculto: { activo: true, toques: 5 },
+      oculto: { activo: true, toques: 5, boton: true },
       club: { activo: true, version: 'v1.0' },
       lang: 'es'
     };
@@ -396,6 +439,7 @@
       { id: 'U-3', nombre: 'Beto, mostrador (ficticio)', correo: 'beto@example.com', rol: 'mostrador', activo: true },
       { id: 'U-4', nombre: 'Cele, voluntaria (ficticia)', correo: 'cele@example.com', rol: 'operador', activo: true }
     ];
+    d.users.forEach(function (u) { CM.setPw(u, CM.CLAVE_DEMO, false); });
     d.perms = CM.permsDefault();
     d.staff = [
       { id: 'E1', nombre: 'Presidencia (ficticia)', dni: '99100001', cargo: 'Presidencia', area: 'Comisión directiva', tel: '3875100001', activo: true },
@@ -529,6 +573,8 @@
     if (!CM.db.cajas || !CM.db.menu) { CM.seedExt(CM.db); CM.save(); }
     else if (CM.db.audit.length && !CM.db.audit[0].h) { CM.rehashAudit(); CM.save(); }
     var m = CM.db.menu, ch = false;
+    (CM.db.users || []).forEach(function (u) { if (!u.pw) { CM.setPw(u, CM.CLAVE_DEMO, false); ch = true; } });
+    if (m) [m.draft, m.pub].concat((m.versiones || []).map(function (v) { return v.cfg; })).forEach(function (c) { if (c && c.wa === '5493870000000') { c.wa = '5493876390362'; ch = true; } if (c && c.oculto && c.oculto.boton === undefined) { c.oculto.boton = true; ch = true; } });
     if (m && m.draft && !m.draft.portada) { CM.menuFill(m.draft); CM.menuFill(m.pub); (m.versiones || []).forEach(function (v) { CM.menuFill(v.cfg); }); ch = true; }
     if (ch) CM.save();
   };

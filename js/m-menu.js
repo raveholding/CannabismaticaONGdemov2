@@ -73,6 +73,7 @@
   };
   function lista(txt) { return String(txt || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
   function fechaL(f) { var L = lang(); try { return new Intl.DateTimeFormat(L === 'en' ? 'en-GB' : 'es-AR', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(f + 'T12:00:00Z')); } catch (e) { return f; } }
+  function telFmt(wa) { var d = String(wa || '').replace(/^549/, ''); return d.length === 10 ? d.slice(0, 4) + ' ' + d.slice(4, 6) + '-' + d.slice(6) : d; }
   function itemCard(cfg, i, a, t, x, n) {
     var q = CM.pub.cart[i.id] || 0, cat = i.cat;
     return '<article class="pub-it"><div class="pub-art">' + artSvg(cat, n) + '</div><div class="pub-itb"><h3>' + esc(tr(cfg, i, 'n')) + '</h3><p>' + esc(tr(cfg, i, 'd')) + '</p>' +
@@ -94,7 +95,7 @@
     var h = '<div class="pubpage' + (live ? '' : ' prev') + '" lang="' + L + '">' +
       '<header class="pub-h"><button type="button" class="pub-logo" ' + a + '="pub-logo" aria-label="' + esc(cfg.nombre) + '"><img src="assets/logo.png" alt="' + esc(cfg.nombre) + '" width="723" height="220"></button>' +
       '<nav class="pub-nav" aria-label="' + esc(cfg.nombre) + '">' + ancl.map(function (b) { return '<button type="button" ' + a + '="pub-ir" data-v="' + b + '">' + NAVL[L][b] + '</button>'; }).join('') + '</nav>' +
-      '<div class="pub-lang" role="group" aria-label="' + t.idioma + '"><button type="button" ' + a + '="pub-lang" data-v="es" aria-pressed="' + (L === 'es') + '" lang="es">ES</button><button type="button" ' + a + '="pub-lang" data-v="en" aria-pressed="' + (L === 'en') + '" lang="en">EN</button></div></header>' +
+      (cfg.oculto && cfg.oculto.boton ? '<a class="btn sm pub-acc" ' + (live ? 'href="#/acceso"' : '') + '>' + (L === 'en' ? 'Team access' : 'Acceso del equipo') + '</a>' : '') + '<div class="pub-lang" role="group" aria-label="' + t.idioma + '"><button type="button" ' + a + '="pub-lang" data-v="es" aria-pressed="' + (L === 'es') + '" lang="es">ES</button><button type="button" ' + a + '="pub-lang" data-v="en" aria-pressed="' + (L === 'en') + '" lang="en">EN</button></div></header>' +
       '<section class="pub-hero"><div class="pub-hero-bg" aria-hidden="true">' + artSvg('reprocann', 3).replace('<svg ', '<svg class="hb" ') + '</div><div class="pub-hero-in"><p class="pub-kick">' + esc(po.kicker) + '</p><h1>' + esc(po.titulo) + '</h1><p class="pub-sub">' + esc(po.sub) + '</p>' +
       '<div class="row pub-cta"><button type="button" class="btn pri" ' + a + '="pub-reprocann">' + esc(po.cta1) + '</button><a class="btn" href="' + esc(wa) + '" target="_blank" rel="noopener noreferrer">' + esc(po.cta2) + '</a></div>' +
       '<ul class="pub-chips"><li>' + CM.icon('shield') + esc(x.chips) + '</li><li>' + CM.icon('pin') + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + '</li>' + (ab === null ? '' : '<li><span class="pill ' + (ab ? 'p-ok' : 'p-mu') + '">' + (ab ? t.abierto : t.cerrado) + '</span></li>') + '</ul></div></section>' +
@@ -130,7 +131,7 @@
         h += '<section class="pub-s" id="pub-wifi" aria-labelledby="pubWifi"><h2 id="pubWifi">' + CM.icon('wifi') + t.wifi + '</h2>' + (vig && cfg.wifi.clave ? '<div class="kv"><div><small>' + t.red + '</small><b>' + esc(cfg.wifi.ssid) + '</b></div><div><small>' + t.clave + '</small><b>' + esc(cfg.wifi.clave) + '</b></div></div><div class="row" style="margin-top:10px"><button type="button" class="btn sm" ' + a + '="pub-copiar" data-v="' + esc(cfg.wifi.clave) + '">' + CM.icon('copy') + t.copiar + '</button></div>' : '<p class="hint">' + t.wifiOff + '</p>') + '</section>';
       } else if (b === 'ubic' && cfg.bloques.ubic) {
         var qs = encodeURIComponent(cfg.ubic.consulta || (cfg.direccion + ' ' + cfg.localidad)), rs = cfg.ubic.resena ? CM.urlHttps(cfg.ubic.resena) : null;
-        h += '<section class="pub-s" id="pub-ubic" aria-labelledby="pubUb"><h2 id="pubUb">' + CM.icon('pin') + t.donde + '</h2><div class="pub-contact"><div><p><b>' + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + '</b></p>' + (cfg.mostrarHorario ? '<p class="pub-hrs">' + esc(hrsTxt(cfg)) + '</p>' : '') + '<p><a href="' + esc(wa) + '" target="_blank" rel="noopener noreferrer">' + x.wa + '</a>' + (cfg.email ? ' · <a href="mailto:' + esc(cfg.email) + '">' + esc(cfg.email) + '</a>' : '') + '</p>' +
+        h += '<section class="pub-s" id="pub-ubic" aria-labelledby="pubUb"><h2 id="pubUb">' + CM.icon('pin') + t.donde + '</h2><div class="pub-contact"><div><p><b>' + esc(cfg.direccion) + (cfg.localidad ? ', ' + esc(cfg.localidad) : '') + '</b></p>' + (cfg.mostrarHorario ? '<p class="pub-hrs">' + esc(hrsTxt(cfg)) + '</p>' : '') + '<p><a href="' + esc(wa) + '" target="_blank" rel="noopener noreferrer">' + x.wa + ' ' + esc(telFmt(cfg.wa)) + '</a>' + (cfg.email ? ' · <a href="mailto:' + esc(cfg.email) + '">' + esc(cfg.email) + '</a>' : '') + '</p>' +
           '<div class="row"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=' + qs + '" target="_blank" rel="noopener noreferrer">' + t.llegar + '</a>' + (rs ? '<a class="btn" href="' + esc(rs) + '" target="_blank" rel="noopener noreferrer">' + t.resena + '</a>' : '') + '</div></div></div></section>';
       } else if (b === 'redes' && cfg.bloques.redes) {
         var rr = cfg.redes.filter(function (r) { return r.activa; }).map(function (r) {
@@ -150,13 +151,41 @@
   }
   VIEWS.m = function () { return pubHtml(CM.db.menu.pub, true); };
   VIEWS.acceso = function () {
-    var us = CM.db.users.filter(function (u) { return u.activo; });
-    return '<div class="pubpage"><div class="card" style="margin:24px 12px"><div style="text-align:center"><img src="assets/logo.png" alt="Cannabismatica" style="max-width:220px;height:auto"></div><h1 style="margin-top:12px">Ingreso del equipo</h1><div class="note warn">Demostración: acá no se pide contraseña. En el sistema real el ingreso es con correo y contraseña, con bloqueo creciente desde el 5.º intento y permisos aplicados en el servidor.</div>' +
-      '<form data-form="acceso" class="f" style="margin-top:12px">' + fl('Usuario (ejemplo)', '<select class="in" name="u">' + us.map(function (u) { return opt(u.id, u.nombre + ' · ' + CM.ROLES[u.rol]); }).join('') + '</select>') + '<button class="btn pri" type="submit">Entrar a la demo</button><a class="btn" href="#/m">Volver al menú público</a></form></div></div>';
+    var cfg = CM.db.menu.pub, us = CM.db.users.filter(function (u) { return u.activo; });
+    var ya = CM.usuarioActual && CM.usuarioActual();
+    if (ya) return '<div class="pubpage"><div class="card login"><h1>Ya ingresaste</h1><p>Sesión de <b>' + esc(ya.nombre) + '</b> (' + esc(CM.ROLES[ya.rol]) + ').</p><div class="row"><a class="btn pri" href="#/inicio">Ir al sistema</a><button class="btn" data-act="salir">Salir</button></div></div></div>';
+    return '<div class="pubpage"><div class="card login"><div style="text-align:center"><img src="assets/logo.png" alt="Cannabismatica" style="max-width:220px;height:auto"></div><h1>Acceso del equipo</h1><p class="hint">Ingresá con tu correo y tu clave. Si no tenés usuario, pedíselo a la administración de la fundación.</p>' +
+      '<form data-form="acceso" class="f" autocomplete="on" novalidate>' + fl('Correo', '<input class="in" type="email" name="correo" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false">') +
+      fl('Clave', '<span class="pwrow"><input class="in" type="password" name="clave" autocomplete="current-password"><button type="button" class="btn sm" data-act="ver-clave" aria-pressed="false">Mostrar</button></span>') +
+      '<p class="err" role="alert" data-err></p><button class="btn pri" type="submit">Ingresar</button><div class="row" style="justify-content:space-between"><button type="button" class="btn sm" data-act="olvide">Olvidé mi contraseña</button><a class="btn sm" href="#/m">Volver al menú</a></div></form>' +
+      '<details style="margin-top:14px"><summary>Usuarios de la demo</summary><div class="note warn" style="margin:8px 0">Demostración: estos usuarios y esta clave son ficticios y se muestran sólo para probar. En el sistema real no existe una clave compartida y cada persona elige la suya.</div><p>Clave de todos los usuarios de ejemplo: <code>' + esc(CM.CLAVE_DEMO) + '</code></p><div class="tw"><table><thead><tr><th>Correo</th><th>Rol</th></tr></thead><tbody>' + us.map(function (u) { return '<tr><td><button type="button" class="linkbtn" data-act="acceso-usar" data-v="' + esc(u.correo) + '">' + esc(u.correo) + '</button></td><td>' + esc(CM.ROLES[u.rol]) + '</td></tr>'; }).join('') + '</tbody></table></div></details>' +
+      '<p class="hint" style="margin-top:12px">Desarrollado por <b>Rave Holding</b> · <a href="https://wa.me/5493875143900?text=' + encodeURIComponent('Hola Rave Holding, necesito ayuda para ingresar al sistema de ' + cfg.nombre) + '" target="_blank" rel="noopener noreferrer">Necesito ayuda</a></p></div></div>';
   };
   CM.forms.acceso = function (f) {
-    var u = CM.db.users.filter(function (x) { return x.id === f.elements.u.value; })[0]; if (!u) return;
-    CM.db.cfg.rol = u.rol; CM.db.cfg.operador = u.nombre; CM.audit('Ingreso al sistema', u.nombre + ' · rol ' + u.rol + ' · desde el menú público'); CM.save(); g.location.hash = '#/inicio'; render();
+    var r = CM.login(f.elements.correo.value, f.elements.clave.value);
+    if (r.err) return fail(f, 'clave', r.err);
+    g.location.hash = '#/inicio'; render();
+    if (r.ok.cambiar) setTimeout(function () { CM.modalClave(true); }, 50);
+  };
+  CM.acts['acceso-usar'] = function (t) { var e = document.querySelector('[data-form="acceso"]'); if (!e) return; e.elements.correo.value = t.getAttribute('data-v'); e.elements.clave.value = CM.CLAVE_DEMO; e.elements.clave.focus(); };
+  CM.acts['ver-clave'] = function (t) { var i = t.parentNode.querySelector('input'), v = i.type === 'password'; i.type = v ? 'text' : 'password'; t.textContent = v ? 'Ocultar' : 'Mostrar'; t.setAttribute('aria-pressed', String(v)); };
+  CM.acts.olvide = function () {
+    var cfg = CM.db.menu.pub;
+    CM.modal.open({ title: 'Olvidé mi contraseña', body: '<p>Pedile a la <b>administración de la fundación</b> que te genere una clave temporal desde <i>Usuarios y permisos</i>. Al ingresar vas a elegir una clave propia.</p><p>Si la administración tampoco puede ingresar, escribile a Rave Holding.</p>', footer: '<button class="btn" data-act="modal-close">Cerrar</button><a class="btn pri" href="https://wa.me/5493875143900?text=' + encodeURIComponent('Hola Rave Holding, olvidé la clave del sistema de ' + cfg.nombre) + '" target="_blank" rel="noopener noreferrer">Escribir a Rave Holding</a>' });
+  };
+  CM.acts.salir = function () { CM.logout(); CM.db.cfg.rol = 'admin'; g.location.hash = '#/m'; render(); CM.toast('Cerraste la sesión.'); };
+  CM.modalClave = function (forzada) {
+    CM.modal.open({ title: forzada ? 'Elegí tu clave propia' : 'Cambiar mi clave', body: (forzada ? '<div class="note warn">Ingresaste con una clave temporal: elegí una propia para seguir.</div>' : '') + '<form id="fCL" data-form="mi-clave" class="f" autocomplete="off" novalidate>' + fl('Clave actual', '<input class="in" type="password" name="act" autocomplete="current-password">') + fl('Clave nueva (mínimo 8, con letras y números)', '<input class="in" type="password" name="n1" autocomplete="new-password">') + fl('Repetí la clave nueva', '<input class="in" type="password" name="n2" autocomplete="new-password">') + '<p class="err" role="alert" data-err></p></form>', footer: (forzada ? '' : '<button class="btn" data-act="modal-close">Cancelar</button>') + '<button class="btn pri" type="submit" form="fCL">Guardar clave</button>' });
+  };
+  CM.acts['mi-clave'] = function () { CM.modalClave(false); };
+  CM.forms['mi-clave'] = function (f) {
+    var u = CM.usuarioActual(); if (!u) return;
+    var e = f.elements;
+    if (CM.hashPw(u.salt, e.act.value) !== u.pw) return fail(f, 'act', 'La clave actual no es correcta.');
+    if (!CM.claveValida(e.n1.value)) return fail(f, 'n1', 'La clave nueva necesita al menos 8 caracteres, con letras y números.');
+    if (e.n1.value !== e.n2.value) return fail(f, 'n2', 'Las dos claves nuevas no coinciden.');
+    if (e.n1.value === e.act.value) return fail(f, 'n1', 'Elegí una clave distinta de la actual.');
+    CM.setPw(u, e.n1.value, false); CM.audit('Cambio de clave', u.nombre); CM.save(); CM.modal.close(true); render(); CM.toast('Clave cambiada.');
   };
   /* acciones del menú público */
 
@@ -236,6 +265,7 @@
       if (rotT) { clearInterval(rotT); rotT = null; }
       if (scrollH) { g.removeEventListener('scroll', scrollH); scrollH = null; }
       document.documentElement.lang = r.v === 'm' ? lang() : 'es-AR';
+      var uf = CM.usuarioActual && CM.usuarioActual(); if (uf && uf.cambiar && r.v !== 'm' && r.v !== 'acceso' && !CM.modal.isOpen()) CM.modalClave(true);
       if (r.v !== 'm') return;
       if (r.a && CM.pub.abierto !== r.a) { CM.pub.abierto = r.a; setTimeout(function () { detalle(r.a); }, 0); } else if (!r.a) CM.pub.abierto = '';
       var cfg = CM.db.menu.pub, p = $('#pubRot'), rot = cfg.frases.filter(function (f) { return f.activa && f.tipo !== 'legal'; });
@@ -324,7 +354,7 @@
     } else if (f.tab === 'acc') {
       var url = urlPub();
       body = '<div class="grid g2"><form class="card f" data-form="mp-acc" autocomplete="off"><h2>Compartir y acceso</h2><label class="chk"><input type="checkbox" name="comp"' + (d.bloques.compartir ? ' checked' : '') + '><span>Botón «Compartir» (usa el menú de compartir del celular o copia el enlace)</span></label><label class="chk"><input type="checkbox" name="vol"' + (d.bloques.volver ? ' checked' : '') + '><span>Botón flotante «Volver arriba»</span></label>' +
-        '<label class="chk"><input type="checkbox" name="oc"' + (d.oculto.activo ? ' checked' : '') + '><span>Acceso oculto del equipo: tocar varias veces el logo del menú abre el ingreso</span></label>' + fl('Cantidad de toques seguidos (3 segundos)', '<input class="in num" name="toq" inputmode="numeric" value="' + esc(d.oculto.toques) + '" style="max-width:140px">') +
+        '<label class="chk"><input type="checkbox" name="bt"' + (d.oculto.boton ? ' checked' : '') + '><span>Mostrar el botón visible «Acceso del equipo» en el encabezado del menú</span></label><label class="chk"><input type="checkbox" name="oc"' + (d.oculto.activo ? ' checked' : '') + '><span>Acceso oculto del equipo: tocar varias veces el logo del menú abre el ingreso</span></label>' + fl('Cantidad de toques seguidos (3 segundos)', '<input class="in num" name="toq" inputmode="numeric" value="' + esc(d.oculto.toques) + '" style="max-width:140px">') +
         '<div class="note info">La ocultación es solo comodidad visual. La seguridad real es el ingreso con contraseña, los roles y el aislamiento de datos del servidor. La ruta <code>#/acceso</code> sirve para teclado y lectores de pantalla.</div><p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar en borrador</button></div></form>' +
         '<section class="card"><h2>QR y enlace del menú</h2><div class="qrbox big" role="img" aria-label="Código QR del menú público">' + CM.qrSvg(url) + '</div><p class="hint" style="word-break:break-all">' + esc(url) + '</p><div class="row"><button class="btn" data-act="pub-copiar" data-v="' + esc(url) + '">' + CM.icon('copy') + 'Copiar enlace</button><button class="btn" data-act="qr-print">' + CM.icon('print') + 'Imprimir QR</button><button class="btn" data-act="qr-svg">' + CM.icon('dl') + 'Descargar SVG</button></div></section></div>';
     } else {
@@ -493,7 +523,7 @@
   CM.forms['mp-acc'] = function (f) {
     if (!perm()) return; var e = f.elements, n = parseInt(e.toq.value, 10);
     if (isNaN(n) || n < 3 || n > 10) return fail(f, 'toq', 'Los toques van de 3 a 10.');
-    var d = dr(); d.bloques.compartir = e.comp.checked; d.bloques.volver = e.vol.checked; d.oculto.activo = e.oc.checked; d.oculto.toques = n; guardarBorrador('Compartir y acceso');
+    var d = dr(); d.bloques.compartir = e.comp.checked; d.bloques.volver = e.vol.checked; d.oculto.activo = e.oc.checked; d.oculto.boton = e.bt.checked; d.oculto.toques = n; guardarBorrador('Compartir y acceso');
   };
   CM.acts['qr-print'] = function () { CM.imprimir('<div class="doc" style="text-align:center"><h1>' + esc(dr().nombre) + '</h1><p>Escaneá para ver talleres, cursos y servicios</p><div style="width:320px;margin:20px auto">' + CM.qrSvg(urlPub()) + '</div><p style="word-break:break-all">' + esc(urlPub()) + '</p></div>'); };
   CM.acts['qr-svg'] = function () { CM.descargar('qr_menu_publico.svg', CM.qrSvg(urlPub()), 'image/svg+xml'); };
