@@ -242,7 +242,7 @@
     var d = {
       v: 2,
       counters: {},
-      cfg: { operador: 'Operador demo', bloquearVencido: true, topeMensualG: '', stockBajoDefault: 20 },
+      cfg: { ejemplo: true, operador: 'Operador demo', bloquearVencido: true, topeMensualG: '', stockBajoDefault: 20 },
       ong: {
         nombre: 'Fundación Cannabismatica Investigación y Desarrollo',
         domicilio: 'Islas Malvinas 137, Salta Capital',

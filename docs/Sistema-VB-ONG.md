@@ -1,6 +1,6 @@
 # Sistema VB ONG — prompt maestro para ONG (base reutilizable)
 
-Versión: 1.0 · Rave Holding · Deriva de Sistema VB (RAVE CORE) y de la demo validada de Fundación Cannabismatica I+D.
+Versión: 2.0 (v1.0 + carga del menú público, créditos, Planilla de cultivo, Google Drive con nombres únicos y modo "sistema completo") · Rave Holding · Deriva de Sistema VB (RAVE CORE) y de la demo validada de Fundación Cannabismatica I+D.
 Uso: este documento se agrega **sobre** el prompt maestro "Sistema VB" (secciones B a P). Donde haya diferencias, manda este documento para ONG. Antes de cambiar un repositorio, inspeccionar el código real. Todo lo descripto es requisito, no funcionalidad ya hecha.
 La estética NO forma parte de este prompt: cada ONG define logo, colores y tipografía en su ficha (sección 1).
 
@@ -67,15 +67,40 @@ Ver sección 2. Incluye: menú lateral, títulos, formularios ("Importe de la do
 - Facturación real con CAE (WSAA + WSFE): módulo de servidor con certificado de la ONG, apagado por defecto, probado en homologación antes de activarlo [VERIFICAR]. Hasta entonces el comprobante es de demostración y lo dice en pantalla.
 - Pruebas obligatorias: donación sin documento, con DNI, con CUIT y con CUIL (4 Facturas C, numeración correcta); documento inválido avisa; umbral exige documento y "sin Factura C" pasa igual; paciente sin documento se busca por legajo y nombre y se le dispensa con donación y Factura C; importación sin documento; exportaciones; NC copia receptor.
 
+## 7 bis. Corrección 5 — Menú público: carga limpia, encabezado legible y créditos
+- Al abrir la aplicación nunca se ve el panel ni un parpadeo antes del menú: el panel permanece oculto hasta que el arranque termina y se decide la vista (sin sesión → menú público).
+- El encabezado fijo del menú es opaco (sin transparencia ni desenfoque): ningún texto se superpone con el logo ni con el contenido al desplazarse, en 320, 360, 768 y escritorio.
+- Los créditos del desarrollador ("Desarrollado por Rave Holding · WhatsApp +54 9 387 514-3900 · raveholding@gmail.com", con enlaces wa.me y mailto) se ven siempre al final del menú, en una tarjeta propia, con margen inferior que no queda tapado por botones flotantes (WhatsApp, volver arriba, barra inferior). Se prueba con captura y con verificación de superposición.
+
+## 7 ter. Módulo Trazabilidad — Planilla de seguimiento de cultivo
+- Pestaña "Planilla de cultivo" dentro de Trazabilidad y entrada propia en el menú lateral (permiso propio `cultivo`: mostrador ve; operador carga; administrador corrige, cierra y reabre).
+- Entidad **ciclo** (nombre, lote o sala, fecha de inicio = día 1, estado activo/cerrado, notas) y **registros** con los campos obligatorios de la planilla: N° (correlativo por ciclo), Fecha, Día, Semana, Fase, Riego (PH / EC), H % (humedad), Temp (°C), R. Off (runoff: EC / PH), Observaciones y Encargado/a.
+- Reglas: Día = días desde el inicio + 1 y Semana = techo(día/7), calculados solos y visibles al elegir la fecha; Fecha no anterior al inicio ni futura; Fase de una lista editable marcada [VERIFICAR con el equipo técnico]; PH 0–14, EC 0–10 mS/cm, H 0–100, Temp −10 a 60; decimales con coma o punto; campos numéricos vacíos con ayuda gris (nunca "0" precargado); al menos una medición u observación; Encargado/a con sugerencias del personal.
+- Nada se borra: corregir exige motivo y conserva los valores anteriores; anular exige motivo y deja la fila tachada. Un ciclo cerrado es de sólo lectura. Todo en la auditoría encadenada.
+- Impresión A4 apaisada (25 filas por hoja, encabezado con ONG, ciclo y lote) y CSV (`;`, UTF-8 con BOM, anti-fórmulas). Todo texto cargado se escapa (anti-XSS).
+- Pruebas: columnas y orden, día/semana (día 8 = semana 2), rangos inválidos, fecha futura o previa al inicio, corrección con motivo, anulación, ciclo cerrado, permisos por rol, XSS, CSV, impresión.
+
+## 7 quater. Google Drive opcional (guardar y gestionar la planilla y el legajo)
+- Se activa por ONG en Integraciones: la ONG carga su propio Client ID de Google (público; nunca el secreto), con origen autorizado de la página. Alcance mínimo `drive.file`; la sesión de Google se pide sólo al tocar el botón (el script de Google no se carga antes) y el token vive sólo en memoria, jamás en el almacenamiento ni en logs. La política de seguridad del navegador (CSP) lista únicamente los dominios de Google necesarios.
+- **Nombres únicos y sin pisar**: cada guardado crea un archivo nuevo con nombre `<ID de ciclo>_<lote>_<aaaa-mm-dd>_v<n>` (el legajo usa `legajo|<leg>`); si el nombre existe se incrementa la versión. Nunca se sobrescribe ni se borra. La carpeta se ubica por una propiedad propia (no por el nombre) y cada archivo lleva una huella del contenido: si el contenido no cambió, no se vuelve a subir (idempotencia, sin duplicados).
+- Estados honestos: "Sin guardar", "Guardado en Drive (fecha, versión)", "Error / requiere reconectar". Sin conexión o sin autorización no se afirma nada guardado.
+- Desconectar descarta el token en memoria y no borra nada en el Drive de la ONG.
+- Pruebas: con Google simulado (creación de carpeta, nombre único, colisión → v+1, mismo contenido no duplica, errores 401/403/red). Pendiente de prueba con cuenta real de Google [VERIFICAR scopes y verificación de la aplicación en la documentación oficial].
+
+## 7 quinquies. Modo "sistema completo para probar" (reemplaza al modo demo)
+- Sin carteles "demo" ni "demostración": el sistema se entrega operativo. Los datos iniciales son de ejemplo, se identifican como "Datos de ejemplo" (indicador en el panel y aviso en el menú) y se retiran con un botón "Empezar de cero en este equipo" (con doble confirmación y auditoría) que borra pacientes, lotes, dispensaciones, donaciones, cajas, cultivos y comprobantes pero conserva usuarios, permisos, ajustes, menú y rubros.
+- Tras vaciar, todas las pantallas funcionan sin errores y se puede dar de alta, dispensar, cobrar donaciones y cargar cultivo desde cero.
+- Lo que depende de terceros sigue marcado: Factura C simulada hasta tener certificado y CAE real; Drive, Mercado Pago, nube y correo "Pendiente de configuración".
+
 ## 8. Módulos de ONG (sobre el Core de Sistema VB; todos por bandera)
-Pacientes/socios y legajo · dispensaciones o prestaciones con trazabilidad de lote/stock y topes por persona · estado del trámite propio (vigencia, vencimiento, alertas) · donaciones y Factura C · caja con apertura, arqueo, cierre sellado y cajas cerradas · dashboard Analytics (donaciones, entregas, stock, trámites por vencer) · inventario y lotes · fidelización/cuotas de socios · personal y fichaje · tareas y organigrama · talleres, cursos y servicios (menú) · importar/exportar todo (CSV;, UTF-8 BOM, anti-fórmulas, sin duplicar, reversión del último lote) · integraciones por tenant (nube, Mercado Pago, Drive, correo, WhatsApp) siempre "Pendiente de configuración" hasta probarlas · usuarios, roles, auditoría encadenada, ajustes.
+Pacientes/socios y legajo · dispensaciones o prestaciones con trazabilidad de lote/stock y topes por persona · planilla de seguimiento de cultivo (7 ter) · estado del trámite propio (vigencia, vencimiento, alertas) · donaciones y Factura C · caja con apertura, arqueo, cierre sellado y cajas cerradas · dashboard Analytics (donaciones, entregas, stock, trámites por vencer) · inventario y lotes · fidelización/cuotas de socios · personal y fichaje · tareas y organigrama · talleres, cursos y servicios (menú) · importar/exportar todo (CSV;, UTF-8 BOM, anti-fórmulas, sin duplicar, reversión del último lote) · integraciones por tenant (nube, Mercado Pago, Drive con nombres únicos (7 quater), correo, WhatsApp) siempre "Pendiente de configuración" hasta probarlas · usuarios, roles, auditoría encadenada, ajustes.
 Periféricos y nube según Sistema VB (HAL, Supabase, RLS, idempotencia).
 
 ## 9. Privacidad y datos sensibles
 Los datos de salud son sensibles: cifrado en reposo y tránsito, acceso por rol y por necesidad, auditoría de lectura, consentimiento por finalidad separado, derechos del titular (acceso, rectificación, supresión) con canal visible, retención y registro de la base ante la autoridad [VERIFICAR con asesor/a legal y fuente oficial]. Nunca en logs ni en URLs; nunca en el menú público; WhatsApp, correo, nacimiento y documento cifrados en la versión real.
 
 ## 10. Pruebas y definición de terminado
-Suites automáticas de flujos reales: panel, menú público, ingreso/roles, importación/exportación, caja/cierres, legajo y duplicados, turnero, donaciones y Factura C con y sin documento, vocabulario (búsqueda de "Aporte"/"cliente"/"venta"…), responsive 320/360/768/1024/1440 sin desbordes, XSS, aislamiento A/B, regresión completa, y verificación en la URL publicada (con parámetro de versión para evitar caché). Nada se declara "100 % funcional": se informa lo probado, lo pendiente de configuración (certificado ARCA, Drive, Mercado Pago, textos legales) y lo pendiente de prueba física (hardware).
+Suites automáticas de flujos reales: panel, menú público, ingreso/roles, importación/exportación, caja/cierres, legajo y duplicados, turnero, carga del menú sin parpadeo y créditos visibles, planilla de cultivo, Drive simulado, "empezar de cero", donaciones y Factura C con y sin documento, vocabulario (búsqueda de "Aporte"/"cliente"/"venta"…), responsive 320/360/768/1024/1440 sin desbordes, XSS, aislamiento A/B, regresión completa, y verificación en la URL publicada (con parámetro de versión para evitar caché). Nada se declara "100 % funcional": se informa lo probado, lo pendiente de configuración (certificado ARCA, Drive, Mercado Pago, textos legales) y lo pendiente de prueba física (hardware).
 
 ## 11. Entrega final (formato)
 1) Qué se implementó y qué pruebas pasaron (cifras). 2) Qué debe hacer la ONG (textos legales, certificado de ARCA, cuentas de integraciones, umbral). 3) Qué no se pudo probar y riesgos abiertos. 4) Créditos de Rave Holding.

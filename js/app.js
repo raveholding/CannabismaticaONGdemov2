@@ -85,9 +85,10 @@
     document.body.classList.toggle('pub', pub);
     if (CM.rolSel) CM.rolSel();
     renderNav(r.v);
+    var pe = $('#pillEj'); if (pe) pe.hidden = !CM.db.cfg.ejemplo;
     var denegado = !pub && r.v !== 'inicio' && r.v !== 'acceso' && CM.can && !CM.can(modDe(r.v), 'ver');
     $('#main').innerHTML = denegado ? '<div class="card"><h1>Sin permiso</h1><p style="color:var(--mu)">El rol actual (' + esc(CM.ROLES[CM.db.cfg.rol] || '') + ') no tiene acceso a esta sección. Cambiá el rol en <a href="#/usuarios">Usuarios y permisos</a> o en el selector de la barra superior.</p></div>' : VIEWS[r.v](r);
-    document.title = (TITULOS[r.v] || '') + ' · Cannabismatica I+D (demo)';
+    document.title = (TITULOS[r.v] || '') + ' · Cannabismatica I+D · Sistema VB ONG';
     hideSugg();
     if (CM.afterRender) CM.afterRender(r);
   }
@@ -197,7 +198,7 @@
 
     return '<section class="card hero"><h1>Buscar paciente</h1><p style="margin:0;color:var(--mu)">Cada paciente tiene un <b>legajo único</b> que une la ficha, los Drive, el REPROCANN y la trazabilidad. Buscá por nombre, legajo, DNI, CUIT o CUIL.</p>' +
       '<form data-form="buscar" autocomplete="off"><label class="sr" for="hq">Nombre, legajo, DNI, CUIT o CUIL del paciente</label><input id="hq" name="q" class="in" placeholder="Nombre, legajo o documento, p. ej. 99000001" aria-describedby="hqh"><button class="btn pri" type="submit">' + CM.icon('search') + 'Buscar</button><button class="btn" type="button" data-act="nuevo-paciente">' + CM.icon('plus') + 'Nuevo paciente</button></form>' +
-      '<p id="hqh" class="hint" style="margin:10px 0 0">Datos de demostración: probá con 99000001, 99000002 o 99000004, o escribí un nombre. El documento es opcional: un paciente puede no tenerlo.</p></section>' +
+      '<p id="hqh" class="hint" style="margin:10px 0 0">Datos de ejemplo: probá con 99000001, 99000002 o 99000004, o escribí un nombre. El documento es opcional: un paciente puede no tenerlo.</p></section>' +
       '<div class="grid g4" style="margin-top:14px">' +
       '<div class="card kpi"><div class="l">Pacientes en el sistema</div><div class="v">' + pacs.length + '</div><div class="s">' + pacs.filter(function (p) { return p.historiaCompleta; }).length + ' con historia clínica completa</div></div>' +
       '<div class="card kpi"><div class="l">Dispensaciones del mes</div><div class="v">' + dm.length + '</div><div class="s">' + esc(totTxt) + '</div></div>' +
@@ -240,7 +241,7 @@
     if (u) {
       h += '<a class="btn pri" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir en Google Drive</a><div class="u">' + esc(u) + '</div>' +
         '<div class="row"><button class="btn sm" data-act="copiar" data-v="' + esc(u) + '">' + CM.icon('copy') + 'Copiar enlace</button><button class="btn sm" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">Cambiar enlace</button></div>';
-      if (u === 'https://drive.google.com/drive/my-drive') h += '<span class="hint">Enlace de ejemplo de la demo: en el sistema real cada paciente tiene su propia carpeta.</span>';
+      if (u === 'https://drive.google.com/drive/my-drive') h += '<span class="hint">Enlace de ejemplo: en el sistema con la nube configurada cada paciente tiene su propia carpeta.</span>';
     } else {
       h += '<div class="note warn">Sin carpeta vinculada todavía. Nombre único sugerido para la carpeta: <b>' + esc(p.driveCarpeta || p.leg || '') + '</b> (lleva el legajo, así nunca choca con otra).</div><button class="btn" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">' + CM.icon('plus') + 'Vincular carpeta de Drive</button>';
     }
@@ -316,7 +317,7 @@
     var sinFc = db.aportes.filter(function (a) { return !a.comp && a.estado === 'registrado'; }).length;
     var comps = db.comps.slice().sort(function (a, b) { return b.id.localeCompare(a.id); });
     return '<div class="page-h"><div><h1>Donaciones voluntarias y Factura C</h1><p>Registro de contribuciones de los pacientes. El módulo de Factura C ante ARCA es una <b>simulación</b>: no se envía nada a ARCA ni se obtiene CAE real.</p></div><button class="btn pri" data-act="aporte" data-dni="">' + CM.icon('plus') + 'Registrar donación</button></div>' +
-      '<div class="note info" style="margin-bottom:14px">Para emitir con CAE real hace falta el certificado digital de la ONG y la conexión con los servicios de ARCA (WSAA/WSFE) <b>[VERIFICAR con el contador y en arca.gob.ar]</b>. Esa etapa no está incluida en esta demo.</div>' +
+      '<div class="note info" style="margin-bottom:14px">Para emitir con CAE real hace falta el certificado digital de la ONG y la conexión con los servicios de ARCA (WSAA/WSFE) <b>[VERIFICAR con el contador y en arca.gob.ar]</b>. Esa etapa no está incluida en esta versión.</div>' +
       '<div class="grid g3"><div class="card kpi"><div class="l">Donaciones del período</div><div class="v">' + esc(CM.fmtMoney(tot)) + '</div><div class="s">' + arr.length + ' registro(s) mostrados</div></div><div class="card kpi"><div class="l">Sin Factura C emitida</div><div class="v">' + sinFc + '</div><div class="s">Donaciones registrados pendientes de comprobante</div></div><div class="card kpi"><div class="l">Comprobantes simulados</div><div class="v">' + comps.length + '</div><div class="s">Facturas C y notas de crédito C</div></div></div>' +
       '<section class="card" style="margin-top:14px"><div class="row" style="margin-bottom:12px"><label class="sr" for="apMes">Mes</label><select id="apMes" class="in" style="max-width:200px">' + opt('todos', 'Todos los meses', mes === 'todos') + ml.map(function (m) { return opt(m, m.slice(5) + '/' + m.slice(0, 4), m === mes); }).join('') + '</select>' +
       '<label class="sr" for="apFlt">Estado</label><select id="apFlt" class="in" style="max-width:260px">' + opt('', 'Todos', !flt) + opt('registrado', 'Registrados', flt === 'registrado') + opt('sinfc', 'Sin Factura C', flt === 'sinfc') + opt('anulado', 'Anulados', flt === 'anulado') + '</select></div>' +
@@ -430,14 +431,14 @@
   };
   CM.acts['print-tr'] = function () {
     var r = rangoTr();
-    CM.imprimir('<div class="doc"><div class="darkband"><img src="assets/logo.png" alt="Cannabismatica"></div><h1 style="margin-top:12px">Informe de trazabilidad</h1><p>Período: ' + CM.fmtFecha(r.desde) + ' a ' + CM.fmtFecha(r.hasta) + ' · Emitido el ' + CM.fmtFecha(CM.hoy()) + ' por ' + esc(CM.db.cfg.operador) + '</p><div class="demo">DATOS FICTICIOS DE DEMOSTRACIÓN</div>' + $('#trBody').innerHTML + '</div>');
+    CM.imprimir('<div class="doc"><div class="darkband"><img src="assets/logo.png" alt="Cannabismatica"></div><h1 style="margin-top:12px">Informe de trazabilidad</h1><p>Período: ' + CM.fmtFecha(r.desde) + ' a ' + CM.fmtFecha(r.hasta) + ' · Emitido el ' + CM.fmtFecha(CM.hoy()) + ' por ' + esc(CM.db.cfg.operador) + '</p>' + $('#trBody').innerHTML + '</div>');
   };
 
   /* ---------- ajustes ---------- */
   VIEWS.ajustes = function () {
     var o = CM.db.ong, c = CM.db.cfg;
     var aud = CM.db.audit.slice(0, 40);
-    return '<div class="page-h"><div><h1>Configuración</h1><p>Datos de la ONG, reglas de la demo y módulos activos. La bitácora está en <a href="#/auditoria">Auditoría</a>.</p></div></div>' +
+    return '<div class="page-h"><div><h1>Configuración</h1><p>Datos de la ONG, reglas del sistema y módulos activos. La bitácora está en <a href="#/auditoria">Auditoría</a>.</p></div></div>' +
       '<form class="card f" data-form="ajustes" autocomplete="off"><h2>Datos de la ONG</h2><div class="f f2">' +
       fl('Nombre de la ONG', '<input class="in" name="nombre" value="' + esc(o.nombre) + '" required>') + fl('Domicilio', '<input class="in" name="domicilio" value="' + esc(o.domicilio) + '">') +
       fl('Correo', '<input class="in" name="email" type="email" value="' + esc(o.email) + '">') + fl('Instagram', '<input class="in" name="instagram" value="' + esc(o.instagram) + '">') +
@@ -450,8 +451,8 @@
       fl('Importe desde el cual se pide documento del receptor, en pesos (opcional; vacío = nunca) [VERIFICAR monto vigente en arca.gob.ar]', '<input class="in num" name="umbral" inputmode="decimal" placeholder="Sin tope" value="' + esc(o.umbralDoc ? (o.umbralDoc / 100).toString().replace('.', ',') : '') + '" style="max-width:260px">') +
       '<p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar ajustes</button></div></form>' +
       (CM.cfgExtra ? CM.cfgExtra() : '') +
-      '<section class="card" style="margin-top:14px"><h2>Sobre esta demo</h2><ul style="margin:0;padding-left:20px;color:var(--mu)"><li>Todos los pacientes y movimientos son <b>ficticios</b> y se guardan sólo en este navegador (no viajan a ningún servidor).</li><li>La Factura C es una <b>simulación</b> sin validez fiscal: no se conecta con ARCA.</li><li>Los enlaces a Drive de la demo apuntan a Google Drive en general; en el sistema real cada paciente tiene sus dos carpetas.</li><li>Normativa (Ley 27.350, vigencias del REPROCANN, exención de la ONG) <b>[VERIFICAR con asesor legal y fuentes oficiales]</b>.</li></ul>' +
-      '<div class="row" style="margin-top:14px"><button class="btn bad" data-act="reset-demo">' + CM.icon('undo') + 'Restablecer datos de ejemplo</button></div></section>';
+      '<section class="card" style="margin-top:14px"><h2>Sobre esta versión de prueba</h2><ul style="margin:0;padding-left:20px;color:var(--mu)"><li>Todos los pacientes y movimientos son <b>ficticios</b> y se guardan sólo en este navegador (no viajan a ningún servidor).</li><li>La Factura C es una <b>simulación</b> sin validez fiscal: no se conecta con ARCA.</li><li>Los enlaces a Drive de los datos de ejemplo apuntan a Google Drive en general; en el sistema real cada paciente tiene sus dos carpetas.</li><li>Normativa (Ley 27.350, vigencias del REPROCANN, exención de la ONG) <b>[VERIFICAR con asesor legal y fuentes oficiales]</b>.</li></ul>' +
+      '<div class="row" style="margin-top:14px"><button class="btn bad" data-act="reset-demo">' + CM.icon('undo') + 'Restablecer datos de ejemplo</button><button class="btn bad" data-act="vaciar">' + CM.icon('trash') + 'Empezar de cero (borrar todo)</button></div></section>';
   };
   function fl(l, inner) { return '<label class="fl"><span>' + esc(l) + '</span>' + inner + '</label>'; }
   function flr(lHtml, inner) { return '<label class="fl"><span>' + lHtml + '</span>' + inner + '</label>'; }
@@ -459,7 +460,7 @@
     CM.descargar('auditoria_' + CM.hoy() + '.csv', CM.csv(['Fecha', 'Usuario', 'Accion', 'Detalle'], CM.db.audit.map(function (a) { return [a.ts, a.user, a.accion, a.detalle]; })));
   };
   CM.acts['reset-demo'] = function () {
-    CM.modal.open({ title: 'Restablecer datos de ejemplo', body: '<p>Se borran todos los cambios hechos en esta demo y se vuelven a cargar los pacientes ficticios.</p>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn bad" data-act="reset-ok">Sí, restablecer</button>' });
+    CM.modal.open({ title: 'Restablecer datos de ejemplo', body: '<p>Se borran todos los cambios y se vuelven a cargar los datos de ejemplo.</p>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn bad" data-act="reset-ok">Sí, restablecer</button>' });
   };
   CM.acts['reset-ok'] = function () { CM.reset(); CM.modal.close(); g.location.hash = '#/inicio'; render(); CM.toast('Datos de ejemplo restablecidos.'); };
   function fail(f, name, msg) {
@@ -818,14 +819,14 @@
   CM.acts['ver-comp'] = function (t) { verComprobante(t.getAttribute('data-id')); };
   function docComp(c) {
     var o = CM.db.ong, q = quienDe(c), nc = c.tipo === 'NCC', dc = c.rec && c.rec.doc ? c.rec.doc : (q.pac ? CM.docPac(q.pac) : null);
-    return '<div class="doc"><div class="demo">DOCUMENTO DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL · NO ENVIADO A ARCA</div>' +
+    return '<div class="doc"><div class="demo">COMPROBANTE SIMULADO · SIN VALIDEZ FISCAL · NO ENVIADO A ARCA</div>' +
       '<div class="hd"><div><h1 style="font-size:17px">' + esc(o.nombre) + '</h1><div>' + esc(o.domicilio) + '</div><div>Condición frente al IVA: ' + esc(o.condicionIva) + '</div></div>' +
       '<div class="letra">C<small>COD. ' + (nc ? '013' : '011') + '</small></div>' +
       '<div><h1>' + (nc ? 'NOTA DE CRÉDITO' : 'FACTURA') + '</h1><div>Punto de emisión: <b>' + esc(c.pv) + '</b> · N.º: <b>' + esc(c.nro) + '</b></div><div>Fecha de emisión: <b>' + CM.fmtFecha(c.fecha) + '</b></div><div>CUIT: ' + (o.cuit ? esc(o.cuit) : '<i>[a completar en Ajustes]</i>') + '</div></div></div>' +
       '<div style="border:1px solid #111;border-top:0;padding:10px 12px"><b>Receptor:</b> ' + esc(nombreCorto(q.nom)) + ' · ' + (dc ? esc(CM.fmtDoc(dc)) : 'Sin documento') + ' · Condición frente al IVA: ' + (dc && dc.tipo === 'CUIT' ? 'a confirmar con el receptor [VERIFICAR]' : 'Consumidor final') + '</div>' +
       '<table style="margin-top:12px"><thead><tr><th>Concepto</th><th style="width:130px;text-align:right">Importe</th></tr></thead><tbody><tr><td>' + esc(c.concepto) + '</td><td style="text-align:right">' + esc(CM.fmtMoney(c.cent)) + '</td></tr></tbody></table>' +
       '<div class="tot">Importe total: ' + esc(CM.fmtMoney(c.cent)) + '</div>' +
-      '<div class="ft">CAE simulado N.º ' + esc(c.cae) + ' · Vto.: ' + CM.fmtFecha(c.caeVto) + '<br>Comprobante generado por la demo del Sistema ONG. Para emitir con CAE real se requiere el certificado digital de la ONG y la conexión con los servicios de ARCA [VERIFICAR].<br>Donación voluntaria registrado por ' + esc(CM.db.cfg.operador) + '.</div></div>';
+      '<div class="ft">CAE simulado N.º ' + esc(c.cae) + ' · Vto.: ' + CM.fmtFecha(c.caeVto) + '<br>Comprobante generado por el Sistema VB ONG (facturación electrónica real pendiente de configuración). Para emitir con CAE real se requiere el certificado digital de la ONG y la conexión con los servicios de ARCA [VERIFICAR].<br>Donación voluntaria registrado por ' + esc(CM.db.cfg.operador) + '.</div></div>';
   }
   function verComprobante(id) {
     var c = CM.comp(id); if (!c) return;

@@ -9,7 +9,7 @@
     return '<div class="tabs" role="group">' + items.map(function (i) { return '<button type="button" data-act="' + act + '" data-v="' + esc(i[0]) + '" aria-pressed="' + (i[0] === cur) + '">' + i[1] + '</button>'; }).join('') + '</div>';
   }
   function estPill(k) {
-    return { pend: '<span class="pill p-warn">Pendiente de configuración</span>', manual: '<span class="pill p-ok">Activo (manual)</span>', sim: '<span class="pill p-info">Simulación</span>', fis: '<span class="pill p-mu">Pendiente de prueba física</span>', nd: '<span class="pill p-mu">No disponible en la demo</span>', ok: '<span class="pill p-ok">Disponible</span>', no: '<span class="pill p-mu">No disponible</span>' }[k];
+    return { pend: '<span class="pill p-warn">Pendiente de configuración</span>', manual: '<span class="pill p-ok">Activo (manual)</span>', sim: '<span class="pill p-info">Simulación</span>', fis: '<span class="pill p-mu">Pendiente de prueba física</span>', nd: '<span class="pill p-mu">No disponible en esta versión</span>', ok: '<span class="pill p-ok">Disponible</span>', no: '<span class="pill p-mu">No disponible</span>' }[k];
   }
 
   /* ---------- selector de rol (simulación) ---------- */
@@ -34,19 +34,19 @@
      =================================================================== */
   VIEWS.nube = function () {
     var db = CM.db;
-    return pageH('Nube', 'Sincronización entre equipos y respaldo. En esta demo <b>no hay nube conectada</b>: todo vive en este navegador.') +
+    return pageH('Nube', 'Sincronización entre equipos y respaldo. En esta versión <b>no hay nube conectada</b>: todo vive en este navegador.') +
       '<div class="note warn" style="margin-bottom:14px"><b>Estado: ' + 'pendiente de configuración.</b> El sistema funciona sin conexión; al conectar la nube, los cambios locales se suben solos.</div>' +
       '<div class="grid g3"><div class="card kpi"><div class="l">Conexión con la nube</div><div class="v" style="font-size:1.2rem;padding:6px 0">' + estPill('pend') + '</div><div class="s">Sin proyecto conectado</div></div>' +
       '<div class="card kpi"><div class="l">Cambios locales registrados</div><div class="v">' + db.audit.length + '</div><div class="s">Se subirían al conectar (cola local)</div></div>' +
       '<div class="card kpi"><div class="l">Modo de trabajo</div><div class="v" style="font-size:1.2rem;padding:6px 0"><span class="pill p-ok">Sin conexión</span></div><div class="s">Datos guardados en este navegador</div></div></div>' +
       '<div class="grid g2" style="margin-top:14px"><section class="card"><h2>Qué se necesita para activarla (sistema real)</h2><ul class="tl">' +
       ['Proyecto en la nube (un proyecto para todas las organizaciones, aisladas por servidor)', 'Esquema de base de datos con permisos por organización (RLS) y pruebas cruzadas entre dos organizaciones', 'Ingreso con correo y contraseña; recuperación de clave con código', 'Respaldos automáticos del proveedor y restauración probada', 'Sincronización entre equipos cada pocos segundos, con cola si no hay internet'].map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul><p class="hint">Esto lo configura Rave Holding con la organización; los secretos nunca viajan en el navegador.</p></section>' +
-      '<section class="card"><h2>Respaldo local (funciona hoy)</h2><p style="color:var(--mu)">Descargá una copia de todos los datos de esta demo y restaurala cuando quieras. En el sistema real el respaldo va cifrado.</p><div class="row"><button class="btn pri" data-act="bk-bajar">' + CM.icon('dl') + 'Descargar respaldo (JSON)</button><label class="btn" for="bkFile" style="cursor:pointer">' + CM.icon('undo') + 'Restaurar desde un respaldo</label><input type="file" id="bkFile" accept=".json,application/json" class="sr"></div>' +
-      '<div class="note info" style="margin-top:12px">Este respaldo de la demo no está cifrado. Contiene datos ficticios.</div></section></div>';
+      '<section class="card"><h2>Respaldo local (funciona hoy)</h2><p style="color:var(--mu)">Descargá una copia de todos los datos de esta versión y restaurala cuando quieras. En el sistema real el respaldo va cifrado.</p><div class="row"><button class="btn pri" data-act="bk-bajar">' + CM.icon('dl') + 'Descargar respaldo (JSON)</button><label class="btn" for="bkFile" style="cursor:pointer">' + CM.icon('undo') + 'Restaurar desde un respaldo</label><input type="file" id="bkFile" accept=".json,application/json" class="sr"></div>' +
+      '<div class="note info" style="margin-top:12px">Este respaldo del sistema no está cifrado. Contiene datos ficticios.</div></section></div>';
   };
   CM.acts['bk-bajar'] = function () {
     CM.audit('Respaldo local', 'Descarga de respaldo JSON'); CM.save();
-    CM.descargar('respaldo_cannabismatica_demo_' + CM.hoy() + '.json', JSON.stringify(CM.db), 'application/json');
+    CM.descargar('respaldo_sistema_vb_ong_' + CM.hoy() + '.json', JSON.stringify(CM.db), 'application/json');
   };
   document.addEventListener('change', function (ev) {
     if (ev.target.id !== 'bkFile' || !ev.target.files[0]) return;
@@ -57,8 +57,8 @@
         var o = JSON.parse(fr.result);
         if (!o || o.v !== 2 || typeof o.pacientes !== 'object' || !Array.isArray(o.lotes) || !Array.isArray(o.movs) || !Array.isArray(o.audit)) throw new Error('forma');
         CM.pendBk = o;
-        CM.modal.open({ title: 'Restaurar respaldo', body: '<p>El archivo es válido: ' + Object.keys(o.pacientes).length + ' pacientes, ' + o.lotes.length + ' lotes. Se reemplazan los datos actuales de esta demo.</p>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn bad" data-act="bk-ok">Sí, restaurar</button>' });
-      } catch (e) { CM.toast('Ese archivo no es un respaldo válido de esta demo.', true); }
+        CM.modal.open({ title: 'Restaurar respaldo', body: '<p>El archivo es válido: ' + Object.keys(o.pacientes).length + ' pacientes, ' + o.lotes.length + ' lotes. Se reemplazan los datos actuales de esta versión.</p>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn bad" data-act="bk-ok">Sí, restaurar</button>' });
+      } catch (e) { CM.toast('Ese archivo no es un respaldo válido de esta versión.', true); }
     };
     fr.readAsText(ev.target.files[0]); ev.target.value = '';
   });
@@ -100,7 +100,7 @@
       var a = db.aportes.slice().sort(function (x, y) { return y.ts.localeCompare(x.ts); })[0];
       if (!a) return 'Sin donaciones para imprimir.';
       L.push(ctr('COMPROBANTE DE DONACION VOLUNTARIA', c).slice(0, c), ctr('NO VALIDO COMO FACTURA', c), rule, 'N.: ' + a.id, 'Fecha: ' + CM.fmtFecha(a.fecha), 'Donante: ' + sinTilde(CM.quienDe(a).nom).slice(0, 24), 'Documento: ' + CM.quienDe(a).doc, 'Concepto: ' + sinTilde(a.concepto), 'Medio: ' + sinTilde(CM.MEDIOS[a.medio] || a.medio), rule, lr('DONACION', money(a.cent), c), rule);
-      L.push.apply(L, wrap('Donación voluntaria, no es pago de un servicio. Documento interno de demostracion.', c));
+      L.push.apply(L, wrap('Donación voluntaria, no es pago de un servicio. Documento interno.', c));
     } else if (doc === 'disp') {
       var d = db.disp.filter(function (x) { return !x.anulada; }).sort(function (x, y) { return y.ts.localeCompare(x.ts); })[0];
       if (!d) return 'Sin dispensaciones para imprimir.';
@@ -123,7 +123,7 @@
       '<section class="card"><h2>Qué permite este navegador</h2><div class="kv">' + caps().map(function (c) { return '<div><small>' + esc(c[0]) + '</small><b>' + (c[1] ? 'Disponible' : 'No disponible aquí') + '</b></div>'; }).join('') + '</div><p class="hint">Disponible no significa probado: falta hacerlo con cada modelo real. Los datos que vuelven de un dispositivo se validan antes de usarse.</p></section>' +
       '<div class="grid g2" style="margin-top:14px"><section class="card"><h2>Ticket</h2><div class="f f2">' + fl('Documento', '<select id="pfDoc" class="in">' + opt('prueba', 'Ticket de prueba', f.doc === 'prueba') + opt('aporte', 'Última donación voluntaria', f.doc === 'aporte') + opt('disp', 'Última entrega de preparado', f.doc === 'disp') + opt('cierre', 'Último cierre de caja', f.doc === 'cierre') + '</select>') + fl('Ancho de papel', '<select id="pfAn" class="in">' + opt('58', '58 mm', f.ancho === '58') + opt('80', '80 mm', f.ancho === '80') + '</select>') + '</div>' +
       '<div class="tkwrap"><pre class="tk tk' + f.ancho + '" aria-label="Vista previa del ticket">' + esc(ticketTexto(f.doc, w)) + '</pre></div><div class="row" style="margin-top:12px"><button class="btn pri" data-act="tk-print">' + CM.icon('print') + 'Imprimir ticket</button></div><p class="hint">Imprime con el diálogo del navegador (impresora del sistema). La impresión directa ESC/POS, el corte y la apertura de cajón requieren la impresora real o un agente local: <b>pendiente de prueba física</b>.</p></section>' +
-      '<section class="card"><h2>Facturación (ARCA)</h2><div class="kv"><div><small>Factura C</small><b>Simulador sin validez fiscal</b></div><div><small>Pedido automático de CAE</small><b>Pendiente de configuración</b></div></div><div class="note warn" style="margin-top:12px">Para emitir con CAE real hacen falta el certificado digital de la ONG y los servicios WSAA/WSFE de ARCA, probados en homologación <b>[VERIFICAR en arca.gob.ar y con el contador]</b>. Hoy los comprobantes de la demo dicen «sin validez fiscal».</div></section></div>' +
+      '<section class="card"><h2>Facturación (ARCA)</h2><div class="kv"><div><small>Factura C</small><b>Simulador sin validez fiscal</b></div><div><small>Pedido automático de CAE</small><b>Pendiente de configuración</b></div></div><div class="note warn" style="margin-top:12px">Para emitir con CAE real hacen falta el certificado digital de la ONG y los servicios WSAA/WSFE de ARCA, probados en homologación <b>[VERIFICAR en arca.gob.ar y con el contador]</b>. Hoy los comprobantes del sistema dicen «sin validez fiscal».</div></section></div>' +
       '<section class="card" style="margin-top:14px"><h2>Tipos de dispositivo</h2><div class="tw"><table><thead><tr><th>Tipo</th><th>Conexión posible</th><th>Estado</th></tr></thead><tbody>' + HAL.map(function (h) { return '<tr><td><b>' + esc(h[1]) + '</b><br><small class="hint">' + esc(h[0]) + '</small></td><td>' + esc(h[2]) + '</td><td>' + estPill('fis') + '</td></tr>'; }).join('') + '</tbody></table></div></section>';
   };
   document.addEventListener('change', function (ev) {
@@ -441,7 +441,7 @@
      =================================================================== */
   var INTEG = [
     ['Google Drive (carpetas del paciente)', 'manual', 'Hoy: enlaces Drive 1 y Drive 2 cargados a mano en cada ficha.', 'Para sincronizar archivos: cuenta Google de la fundación, proyecto con la API habilitada, pantalla de consentimiento y permisos mínimos (drive.file). Los tokens quedan cifrados en el servidor.'],
-    ['Formularios de Google (historia y seguimiento)', 'manual', 'Activo: la demo abre los formularios y los muestra en el QR de la etiqueta.', 'La carga automática de respuestas a la ficha requiere conectar la hoja de respuestas.'],
+    ['Formularios de Google (historia y seguimiento)', 'manual', 'Activo: el sistema abre los formularios y los muestra en el QR de la etiqueta.', 'La carga automática de respuestas a la ficha requiere conectar la hoja de respuestas.'],
     ['Mercado Pago (donaciones por QR o link)', 'pend', 'Pendiente de configuración.', 'Cuenta de la fundación, credenciales por canal seguro, webhooks con firma y pruebas en sandbox. Una donación sólo se acredita con confirmación verificada del proveedor.'],
     ['WhatsApp', 'manual', 'Activo: abre WhatsApp con un mensaje listo (envío manual). No es un envío automático.', 'El envío automático usa la API oficial de WhatsApp Business: cuenta, plantillas aprobadas, costos [VERIFICAR].'],
     ['Correo electrónico', 'pend', 'Pendiente de configuración.', 'SMTP o proveedor transaccional configurado en el servidor, con baja de comunicaciones y lista de supresión.'],
@@ -450,9 +450,9 @@
     ['Analítica y publicidad (Google Analytics, Meta Pixel)', 'nd', 'Apagado: no se instala ningún rastreador en el menú público.', 'Se activaría sólo con consentimiento y revisión legal [VERIFICAR]. Nunca en pantallas internas ni con datos de salud.']
   ];
   VIEWS.integraciones = function () {
-    return pageH('Integraciones', 'Conexiones opcionales con otros servicios. Ninguna está conectada en esta demo salvo los enlaces manuales; cada tarjeta dice la verdad sobre su estado.') +
+    return pageH('Integraciones', 'Conexiones opcionales con otros servicios. Ninguna está conectada en esta versión salvo los enlaces manuales; cada tarjeta dice la verdad sobre su estado.') +
       '<div class="grid g2">' + INTEG.map(function (i) { return '<section class="card"><div class="row sp"><h3>' + esc(i[0]) + '</h3>' + estPill(i[1]) + '</div><p style="margin:8px 0">' + esc(i[2]) + '</p><details><summary>Qué hace falta</summary><p class="hint" style="margin-top:8px">' + esc(i[3]) + '</p></details></section>'; }).join('') + '</div>' +
-      '<section class="card" style="margin-top:14px"><h2>Probar un enlace manual</h2><p style="color:var(--mu)">WhatsApp se abre con un mensaje listo; una persona lo revisa y lo envía.</p><a class="btn" href="https://wa.me/5493875143900?text=' + encodeURIComponent('Hola Rave Holding, consulto por la integración de la demo de Cannabismatica') + '" target="_blank" rel="noopener noreferrer">Abrir WhatsApp de Rave Holding</a></section>';
+      '<section class="card" style="margin-top:14px"><h2>Probar un enlace manual</h2><p style="color:var(--mu)">WhatsApp se abre con un mensaje listo; una persona lo revisa y lo envía.</p><a class="btn" href="https://wa.me/5493875143900?text=' + encodeURIComponent('Hola Rave Holding, consulto por la integración del sistema de Cannabismatica') + '" target="_blank" rel="noopener noreferrer">Abrir WhatsApp de Rave Holding</a></section>';
   };
 
   /* ===================================================================
@@ -470,7 +470,7 @@
           if (r === 'admin') return '<td><span class="pill p-ok">Administrar</span></td>';
           return '<td><label class="sr" for="pm_' + r + '_' + m[0] + '">' + esc(m[1] + ' · ' + CM.ROLES[r]) + '</label><select id="pm_' + r + '_' + m[0] + '" class="in sm" name="' + r + '|' + m[0] + '">' + CM.LVL.map(function (l) { return opt(l, CM.LVL_L[l], (db.perms[r][m[0]] || '') === l); }).join('') + '</select></td>';
         }).join('') + '</tr>';
-      }).join('') + '</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn pri" type="submit">Guardar permisos</button><button class="btn" type="button" data-act="perms-reset">Restaurar valores por defecto</button></div></form><p class="hint">En la demo los permisos se aplican a las pantallas y a las acciones de los módulos de gestión; las pantallas originales (pacientes, dispensaciones, donaciones) se controlan a nivel de acceso a la sección.</p></section>';
+      }).join('') + '</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn pri" type="submit">Guardar permisos</button><button class="btn" type="button" data-act="perms-reset">Restaurar valores por defecto</button></div></form><p class="hint">En esta versión los permisos se aplican a las pantallas y a las acciones de los módulos de gestión; las pantallas originales (pacientes, dispensaciones, donaciones) se controlan a nivel de acceso a la sección.</p></section>';
   };
   CM.forms.perms = function (f) {
     if (!CM.need('usuarios', 'admin')) return;
@@ -524,7 +524,7 @@
       '<p class="hint" style="margin:0 0 8px">' + arr.length + ' de ' + a.length + ' registros (se muestran los primeros 100)</p><div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th><th>Hash</th></tr></thead><tbody>' + arr.slice(0, 100).map(function (x) {
         return '<tr><td>' + esc(CM.fmtFH(x.ts)) + '</td><td>' + esc(x.user) + '</td><td>' + esc(CM.ROLES[x.rol] || x.rol || '') + '</td><td>' + esc(x.accion) + '</td><td>' + esc(x.detalle) + '</td><td><code>' + esc((x.h || '').slice(0, 8)) + '</code></td></tr>';
       }).join('') + '</tbody></table></div>' +
-      '<details style="margin-top:14px"><summary>Prueba de integridad (demo)</summary><p class="hint">Altera a propósito el detalle de un registro para mostrar que la verificación lo detecta; después se puede reparar.</p><div class="row"><button class="btn sm bad" data-act="aud-alterar">Simular alteración</button><button class="btn sm" data-act="aud-reparar">Reparar la alteración de prueba</button></div></details></section>';
+      '<details style="margin-top:14px"><summary>Prueba de integridad</summary><p class="hint">Altera a propósito el detalle de un registro para mostrar que la verificación lo detecta; después se puede reparar.</p><div class="row"><button class="btn sm bad" data-act="aud-alterar">Simular alteración</button><button class="btn sm" data-act="aud-reparar">Reparar la alteración de prueba</button></div></details></section>';
   };
   document.addEventListener('input', function (ev) { if (ev.target.id === 'auQ') { CM.aud.q = ev.target.value; var pos = ev.target.selectionStart; render(); var n = $('#auQ'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { /* nada */ } } } });
   document.addEventListener('change', function (ev) { if (ev.target.id === 'auU') { CM.aud.user = ev.target.value; render(); } else if (ev.target.id === 'auD') { CM.aud.desde = ev.target.value; render(); } });

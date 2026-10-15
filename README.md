@@ -1,6 +1,6 @@
-# Cannabismatica I+D · Sistema ONG (demo v2)
+# Cannabismatica I+D · Sistema ONG (sistema completo para probar)
 
-Demo interactiva del sistema de gestión de la **Fundación Cannabismatica Investigación y Desarrollo** (ONG de cannabis medicinal, Salta · Ley N.º 27.350 · REPROCANN).
+Sistema completo (HTML5, funciona sin conexión en el navegador) para prueba del cliente, del sistema de gestión de la **Fundación Cannabismatica Investigación y Desarrollo** (ONG de cannabis medicinal, Salta · Ley N.º 27.350 · REPROCANN).
 Para que el equipo y el cliente la recorran y definan correcciones. **No es el sistema final**: los datos son ficticios y se guardan sólo en el navegador de quien la abre.
 
 ## Qué incluye
@@ -41,6 +41,13 @@ Terminología de ONG en toda la interfaz: paciente/socio, dispensación, donaci�
 - Pacientes de ejemplo: **99000001** (válido), **99000002** (vence en 25 días), **99000003** (en trámite), **99000004** (vencido: la dispensación se bloquea), **99000005**, **99000006** (historia pendiente).
 - *Ajustes → Restablecer datos de ejemplo* vuelve todo al inicio.
 - Parámetro opcional `?hoy=AAAA-MM-DD` para simular otra fecha (vigencias).
+
+## Fase 6 (novedades)
+- **Planilla de seguimiento de cultivo** (Trazabilidad → "Planilla de cultivo" y menú lateral "Cultivo"): N°, Fecha, Día, Semana, Fase, Riego (PH/EC), H %, Temp, R. Off (EC/PH), Observaciones y Encargado; corrección/anulación con motivo, ciclo cerrado de sólo lectura, impresión A4 y CSV.
+- **Google Drive opcional** (`js/m-drive.js`): la ONG carga su Client ID de Google; guarda cada ciclo como archivo nuevo con nombre único `<ciclo>_<lote>_<fecha>_v<n>`, sin pisar ni duplicar. Probado sólo con Google simulado; falta probar con cuenta real. La CSP ahora permite los dominios de Google necesarios.
+- **Menú público**: carga sin parpadeo del panel, encabezado opaco y créditos de Rave Holding visibles.
+- **Empezar de cero**: botón en Ajustes que retira los datos de ejemplo conservando usuarios, ajustes y menú.
+- Prompt reutilizable para otras ONG: `docs/Sistema-VB-ONG.md` (v2).
 
 ## Límites de la demo (a validar antes del sistema real)
 

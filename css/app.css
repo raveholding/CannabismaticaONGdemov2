@@ -212,3 +212,6 @@ legend{padding:0 8px;color:var(--ac);font-weight:600;font-size:14px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 #main:focus{outline:none}
+
+/* nada se ve hasta que el arranque eligió menú público o panel (evita el parpadeo del panel) */
+html:not(.rdy) .app{visibility:hidden}

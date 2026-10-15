@@ -255,7 +255,7 @@
   }
   CM.acts['sello-tarjeta'] = function (t) {
     var p = CM.paciente(t.getAttribute('data-dni'));
-    CM.modal.open({ title: 'Tarjeta de participación', body: '<div class="tarj-wrap">' + tarjetaHtml(p) + '</div><p class="hint">Tamaño de tarjeta 85,6 × 54 mm. El QR lleva una firma: una tarjeta falsificada no valida. En la demo el QR no se lee con cámara.</p>', footer: '<button class="btn" data-act="modal-close">Cerrar</button><button class="btn pri" data-act="tarj-print" data-dni="' + esc(p.dni) + '">' + CM.icon('print') + 'Imprimir</button>' });
+    CM.modal.open({ title: 'Tarjeta de participación', body: '<div class="tarj-wrap">' + tarjetaHtml(p) + '</div><p class="hint">Tamaño de tarjeta 85,6 × 54 mm. El QR lleva una firma: una tarjeta falsificada no valida. En esta versión el QR no se lee con cámara.</p>', footer: '<button class="btn" data-act="modal-close">Cerrar</button><button class="btn pri" data-act="tarj-print" data-dni="' + esc(p.dni) + '">' + CM.icon('print') + 'Imprimir</button>' });
   };
   CM.acts['tarj-print'] = function (t) { CM.imprimir('<div class="tarj-wrap print">' + tarjetaHtml(CM.paciente(t.getAttribute('data-dni'))) + '</div>'); };
   function resCupon(f, msg, ok) {
