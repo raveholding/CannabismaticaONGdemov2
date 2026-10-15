@@ -70,7 +70,7 @@
   CM.LVL = ['', 'ver', 'oper', 'edit', 'admin'];
   CM.LVL_L = { '': 'Sin acceso', ver: 'Sólo ver', oper: 'Operar (cargar)', edit: 'Editar', admin: 'Administrar (anular / cerrar)' };
   CM.MODS = [
-    ['pacientes', 'Pacientes'], ['dispensaciones', 'Dispensaciones'], ['aportes', 'Aportes y Factura C'], ['reprocann', 'REPROCANN'], ['trazabilidad', 'Trazabilidad'],
+    ['pacientes', 'Pacientes'], ['dispensaciones', 'Dispensaciones'], ['aportes', 'Donaciones y Factura C'], ['reprocann', 'REPROCANN'], ['trazabilidad', 'Trazabilidad'],
     ['dashboard', 'Dashboard'], ['caja', 'Caja'], ['cierre', 'Arqueo y cierre'], ['cerradas', 'Cajas cerradas'], ['inventario', 'Inventario'], ['fidelizacion', 'Fidelización'],
     ['personal', 'Personal y fichaje'], ['tareas', 'Tareas y organigrama'], ['menu', 'Menú público'], ['nube', 'Nube'], ['perifericos', 'Periféricos y ticket'],
     ['importexport', 'Importar / Exportar'], ['integraciones', 'Integraciones'], ['usuarios', 'Usuarios y permisos'], ['auditoria', 'Auditoría'], ['ajustes', 'Configuración']
@@ -171,7 +171,7 @@
     var cerrados = {};
     CM.db.cajas.forEach(function (c) { if (c.estado === 'cerrada' && c.cierre) c.cierre.movs.forEach(function (m) { if (m.ref) cerrados[m.ref] = 1; }); });
     return CM.db.aportes.filter(function (a) { return a.estado === 'registrado' && a.fecha >= caja.fecha && !cerrados[a.id]; }).map(function (a) {
-      return { id: 'AP-' + a.id, ts: a.ts, tipo: 'ingreso', cent: a.cent, medio: a.medio, rubroId: 'R-01', rubroN: 'Aportes voluntarios', motivo: a.concepto + ' · DNI ' + a.dni, user: a.user, ref: a.id, derivado: true, fc: !!a.comp };
+      return { id: 'AP-' + a.id, ts: a.ts, tipo: 'ingreso', cent: a.cent, medio: a.medio, rubroId: 'R-01', rubroN: 'Donaciones voluntarias', motivo: a.concepto + ' · ' + (a.dni ? 'Legajo ' + CM.legDe(a.dni) : 'donante sin identificar'), user: a.user, ref: a.id, derivado: true, fc: !!a.comp };
     });
   }
   CM.cajaMovs = function (caja) {
@@ -237,7 +237,7 @@
   /* ---------- fidelización ---------- */
   CM.saldoSellos = function (dni) { var s = 0; CM.db.sellos.forEach(function (x) { if (x.dni === dni) s += x.cant; }); return s; };
   CM.otorgarSello = function (dni, motivo) {
-    if (!CM.paciente(dni)) return { err: 'Ese DNI no existe.' };
+    if (!CM.paciente(dni)) return { err: 'No encontré a ese paciente.' };
     var h = CM.hoy();
     if (CM.db.sellos.some(function (x) { return x.dni === dni && x.fecha === h && x.tipo === 'sello'; })) return { err: 'Ese paciente ya recibió un sello hoy (límite: 1 por día, validado en el mostrador).' };
     var s = { id: CM.nextId('SE'), dni: dni, fecha: h, ts: new Date().toISOString(), tipo: 'sello', cant: 1, motivo: motivo || 'Participación', user: CM.db.cfg.operador };
@@ -259,7 +259,7 @@
     if (h > c.hasta) return { err: 'El cupón venció el ' + CM.fmtFecha(c.hasta) + '.' };
     if (c.max && CM.usosCupon(c.cod) >= c.max) return { err: 'El cupón alcanzó su límite de usos (' + c.max + ').' };
     if (dni) {
-      if (!CM.paciente(dni)) return { err: 'Ese DNI no existe.' };
+      if (!CM.paciente(dni)) return { err: 'No encontré a ese paciente.' };
       if (c.porPac && CM.usosCupon(c.cod, dni) >= c.porPac) return { err: 'Ese paciente ya usó este cupón el máximo de veces (' + c.porPac + ').' };
     }
     return { ok: c };
@@ -347,7 +347,7 @@
       ],
       faq: [
         { es: { q: '¿Qué es el REPROCANN?', a: 'Es el registro nacional creado a partir de la Ley 27.350 para personas que usan cannabis con fines medicinales. Los requisitos y trámites los define el organismo oficial [VERIFICAR en argentina.gob.ar].' }, en: { q: 'What is REPROCANN?', a: 'It is the national registry created under Law 27,350 for people who use cannabis for medical purposes. Requirements and procedures are set by the official authority [VERIFY].' } },
-        { es: { q: '¿Los aportes son obligatorios?', a: 'No. Los aportes son voluntarios y se destinan al sostenimiento de la fundación. Podés consultar sin aportar.' }, en: { q: 'Are contributions mandatory?', a: 'No. Contributions are voluntary and support the foundation. You can ask questions without contributing.' } },
+        { es: { q: '¿Las donaciones son obligatorias?', a: 'No. Las donaciones son voluntarias y se destinan al sostenimiento de la fundación. Podés consultar sin donar.' }, en: { q: 'Are donations mandatory?', a: 'No. Donations are voluntary and support the foundation. You can ask questions without donating.' } },
         { es: { q: '¿Cómo me inscribo a un taller o curso?', a: 'Agregalo a «Mi consulta» y envianos el mensaje por WhatsApp. Es una solicitud: te confirmamos el lugar por el mismo medio.' }, en: { q: 'How do I sign up for a workshop or course?', a: 'Add it to “My inquiry” and send us the message on WhatsApp. It is a request: we confirm your place the same way.' } },
         { es: { q: '¿Atienden a menores de edad?', a: 'Los servicios son para mayores de 18 años o con autorización de su tutor/a. Consultanos el caso [VERIFICAR texto legal].' }, en: { q: 'Do you see minors?', a: 'Services are for people over 18 or with guardian authorization. Ask us about your case [VERIFY legal text].' } },
         { es: { q: '¿Esta información reemplaza una consulta médica?', a: 'No. Todo el contenido es informativo y no reemplaza la consulta con un profesional de la salud.' }, en: { q: 'Does this information replace medical advice?', a: 'No. All content is informational and does not replace a consultation with a health professional.' } }
@@ -361,6 +361,9 @@
     c.bloques = c.bloques || {};
     ['agenda', 'pasos', 'faq'].forEach(function (k) { if (c.bloques[k] === undefined) c.bloques[k] = true; });
     c.orden = c.orden || ['catalogo'];
+    if (!c.hc) c.hc = { turnero: true, intro: { es: '', en: '' }, consent: { es: '', en: '' } };
+    if (c.bloques.hc === undefined) c.bloques.hc = true;
+    if (c.orden.indexOf('hc') < 0) c.orden.unshift('hc');
     ['agenda', 'pasos', 'faq'].forEach(function (k) { if (c.orden.indexOf(k) < 0) c.orden.splice(c.orden.indexOf('catalogo') + 1 + ['agenda', 'pasos', 'faq'].indexOf(k), 0, k); });
     (c.items || []).forEach(function (i) {
       var d = ITX[i.id];
@@ -379,7 +382,7 @@
       frases: [
         { id: 'F1', tipo: 'institucional', activa: true, es: 'Información responsable, acompañamiento cercano.', en: 'Responsible information, close support.' },
         { id: 'F2', tipo: 'informativa', activa: true, es: 'Este contenido es informativo y no reemplaza la consulta médica.', en: 'This content is informational and does not replace a medical consultation.' },
-        { id: 'F3', tipo: 'legal', activa: true, obligatoria: true, es: 'Asociación sin fines de lucro. Los aportes son voluntarios y se destinan al sostenimiento de la fundación. [VERIFICAR texto legal con asesor/a]', en: 'Non-profit association. Contributions are voluntary and support the foundation. [VERIFY legal text]' },
+        { id: 'F3', tipo: 'legal', activa: true, obligatoria: true, es: 'Asociación sin fines de lucro. Las donaciones son voluntarias y se destinan al sostenimiento de la fundación. [VERIFICAR texto legal con asesor/a]', en: 'Non-profit association. Donations are voluntary and support the foundation. [VERIFY legal text]' },
         { id: 'F4', tipo: 'legal', activa: true, obligatoria: true, es: 'Servicios para mayores de 18 años o con autorización de su tutor/a. [VERIFICAR texto legal con asesor/a]', en: 'Services for people over 18 or with guardian authorization. [VERIFY legal text]' }
       ],
       rotar: true, intervalo: 6,
@@ -428,9 +431,9 @@
     d.cfg.rubroOng = 'ONG de salud · cannabis medicinal';
     d.cfg.zona = 'America/Argentina/Salta';
     d.rubros = [
-      ['R-01', 'Aportes voluntarios', 'ingreso'], ['R-02', 'Cuotas de socios', 'ingreso'], ['R-03', 'Donaciones', 'ingreso'], ['R-04', 'Talleres y cursos', 'ingreso'], ['R-05', 'Servicios y acompañamiento', 'ingreso'],
+      ['R-01', 'Donaciones voluntarias', 'ingreso'], ['R-02', 'Cuotas de socios', 'ingreso'], ['R-03', 'Otras donaciones', 'ingreso'], ['R-04', 'Talleres y cursos', 'ingreso'], ['R-05', 'Servicios y acompañamiento', 'ingreso'],
       ['R-06', 'Insumos y envases', 'egreso'], ['R-07', 'Servicios (luz, agua, internet)', 'egreso'], ['R-08', 'Honorarios y viáticos', 'egreso'], ['R-09', 'Alquiler', 'egreso'], ['R-10', 'Librería y limpieza', 'egreso'],
-      ['R-11', 'Gastos bancarios', 'egreso'], ['R-12', 'Devolución de aportes', 'egreso'], ['R-13', 'Ajustes y diferencias', 'ambos']
+      ['R-11', 'Gastos bancarios', 'egreso'], ['R-12', 'Devolución de donaciones', 'egreso'], ['R-13', 'Ajustes y diferencias', 'ambos']
     ].map(function (r) { return { id: r[0], n: r[1], tipo: r[2], activo: true }; });
     d.cajas = []; d.cmovs = [];
     d.users = [
@@ -462,7 +465,7 @@
       { id: 'T-1', t: 'Renovar el REPROCANN de la ONG', d: 'Reunir la documentación y revisar la fecha de vencimiento.', resp: 'E1', pri: 'alta', vence: CM.addDays(h, 20), col: 'curso' },
       { id: 'T-2', t: 'Llamar a pacientes con seguimiento pendiente', d: '', resp: 'E3', pri: 'media', vence: CM.addDays(h, 3), col: 'pend' },
       { id: 'T-3', t: 'Preparar el taller de cultivo responsable', d: 'Material y lista de inscriptos.', resp: 'E5', pri: 'media', vence: CM.addDays(h, 9), col: 'pend' },
-      { id: 'T-4', t: 'Rendición mensual de aportes', d: 'Controlar cajas cerradas y comprobantes.', resp: 'E2', pri: 'alta', vence: CM.addDays(h, 6), col: 'rev' },
+      { id: 'T-4', t: 'Rendición mensual de donaciones', d: 'Controlar cajas cerradas y comprobantes.', resp: 'E2', pri: 'alta', vence: CM.addDays(h, 6), col: 'rev' },
       { id: 'T-5', t: 'Reposición de envases ámbar', d: '', resp: 'E4', pri: 'baja', vence: CM.addDays(h, 14), col: 'pend' },
       { id: 'T-6', t: 'Actualizar el menú público', d: 'Cargar las fechas de los próximos talleres.', resp: 'E5', pri: 'baja', vence: '', col: 'hecha' },
       { id: 'T-7', t: 'Backup mensual de la base', d: 'Exportar el respaldo local.', resp: 'E2', pri: 'media', vence: CM.addDays(h, -2), col: 'curso' }
@@ -481,8 +484,8 @@
     function sello(dni, n) { for (var i = n; i >= 1; i--) { var f = CM.addDays(h, -i * 4); d.sellos.push({ id: CM.nextId('SE'), dni: dni, fecha: f, ts: ts(f, '15:00'), tipo: 'sello', cant: 1, motivo: 'Participación en taller', user: 'Operador demo' }); } }
     sello('99000001', 5); sello('99000002', 3); sello('99000005', 8);
     d.cupones = [
-      { id: 'CP-1', cod: 'BIENVENIDA', tipo: 'pct', valor: 20, desde: CM.addDays(h, -10), hasta: CM.addDays(h, 60), max: 50, porPac: 1, estado: 'activo', desc: 'Bonificación del 20 % sobre el aporte sugerido del primer taller.' },
-      { id: 'CP-2', cod: 'TALLER2000', tipo: 'monto', valor: 200000, desde: CM.addDays(h, -5), hasta: CM.addDays(h, 30), max: 20, porPac: 1, estado: 'activo', desc: 'Bonificación de $ 2.000 sobre el aporte sugerido de un curso.' },
+      { id: 'CP-1', cod: 'BIENVENIDA', tipo: 'pct', valor: 20, desde: CM.addDays(h, -10), hasta: CM.addDays(h, 60), max: 50, porPac: 1, estado: 'activo', desc: 'Bonificación del 20 % sobre la donación sugerida del primer taller.' },
+      { id: 'CP-2', cod: 'TALLER2000', tipo: 'monto', valor: 200000, desde: CM.addDays(h, -5), hasta: CM.addDays(h, 30), max: 20, porPac: 1, estado: 'activo', desc: 'Bonificación de $ 2.000 sobre la donación sugerida de un curso.' },
       { id: 'CP-3', cod: 'VERANO', tipo: 'pct', valor: 10, desde: CM.addDays(h, -90), hasta: CM.addDays(h, -30), max: 30, porPac: 1, estado: 'activo', desc: 'Campaña anterior (vencida, de ejemplo).' }
     ];
     d.cuponUsos = [{ id: 'CU-000001', key: 'BIENVENIDA|99000001|', cod: 'BIENVENIDA', dni: '99000001', fecha: CM.addDays(h, -6), ts: ts(CM.addDays(h, -6), '15:00'), ref: '', user: 'Operador demo' }];
@@ -540,7 +543,7 @@
         d.cmovs.push({ id: CM.nextId('CM'), caja: caja.id, ts: ts(f, String(13 + i).padStart(2, '0') + ':00'), tipo: m[0], cent: m[2], medio: 'efectivo', rubroId: r.id, rubroN: r.n, motivo: m[3], user: 'Operador demo', ref: '' });
       });
       var movs = CM.cajaMovs(caja), t = CM.totCaja(caja, movs);
-      // sólo los aportes de ese día entran en esa caja
+      // sólo las donaciones de ese día entran en esa caja
       var propios = movs.filter(function (m) { return !m.derivado || (CM.db.aportes.filter(function (a) { return a.id === m.ref; })[0] || {}).fecha === f; });
       var snapCaja = caja;
       var tmp = CM.cerrarCaja(snapCaja, 0, '', ts(f, '21:00'));

@@ -1,0 +1,39 @@
+/* Tema visual v3: estética de la demo anterior (negro + verde lima #A8E600, panel claro con tarjetas blancas) */
+:root{--f-head:Inter,"Segoe UI",system-ui,-apple-system,Roboto,'Helvetica Neue',Arial,sans-serif;--f-body:var(--f-head);--r:20px;--lima:#A8E600;--lima2:#EEF9CC;--verde:#1F8A70;--ink:#0B0E09}
+body{-webkit-font-smoothing:antialiased}
+h1,h2,h3{letter-spacing:-.3px;font-weight:750}
+/* Menú público: oscuro, lima */
+body.pub{--bg:#060806;--s1:#0f130e;--s2:#141912;--s3:#1b2119;--bd:#232b20;--bd2:#313c2d;--tx:#eef3ea;--mu:#9aa795;--ac:#A8E600;--ac-ink:#0B0E09;--ac-d:#93cc00;background:#060806;background-image:none}
+body.pub .btn{border-radius:999px}
+body.pub .btn.pri{background:var(--lima);border-color:var(--lima);color:var(--ink)}
+/* Panel: claro */
+body:not(.pub){--bg:#F4F6F1;--s1:#ffffff;--s2:#ffffff;--s3:#eef1ea;--bd:#e6eae1;--bd2:#d3dacd;--tx:#0B0E09;--mu:#5f6a5a;--ac:#1F8A70;--ac-ink:#0B0E09;--ac-d:#176f5a;--ok:#0f9d58;--warn:#b77800;--bad:#d92d4b;--info:#1d6fb8;--sh:0 1px 2px rgba(11,14,9,.04),0 8px 30px rgba(11,14,9,.06);background:#F4F6F1;background-image:none}
+body:not(.pub) a{color:var(--verde)}
+body:not(.pub) .btn{border-radius:999px;background:#fff}
+body:not(.pub) .btn.pri{background:var(--lima);border-color:var(--lima);color:var(--ink)}
+body:not(.pub) .btn.pri:hover{background:#94cc00}
+body:not(.pub) .top{background:rgba(255,255,255,.88);border-bottom:1px solid var(--bd)}
+body:not(.pub) .card,body:not(.pub) .kpi,body:not(.pub) .tile{background:#fff;border-color:var(--bd);box-shadow:var(--sh);border-radius:20px}
+body:not(.pub) .in,body:not(.pub) select.in,body:not(.pub) textarea.in{background:#fff;border-color:var(--bd2);color:var(--tx)}
+body:not(.pub) .pill-demo{background:var(--lima2);color:#3c4a00;border-color:#d6eb8a}
+/* Barra lateral: negra */
+body:not(.pub) .side{--tx:#e9f0e6;--mu:#93a58f;--ac:#A8E600;--bd:#232b20;--bd2:#313c2d;--s2:#171d15;background:#0B0E09;border-right:0;color:#e9f0e6}
+body:not(.pub) .side a{color:#c9d3c4}
+body:not(.pub) .nav a:hover{background:#171d15;color:#fff}
+body:not(.pub) .nav a[aria-current="page"]{background:var(--lima);color:var(--ink);border-color:var(--lima)}
+body:not(.pub) .side .foot{color:#8a968600;color:#8a9686}
+/* Tablas y chips en claro */
+body:not(.pub) table th{background:#f0f3ec;color:#3c473a}
+body:not(.pub) .note{background:var(--lima2);border-color:#d6eb8a;color:#2c3a00}
+body:not(.pub) .note.warn{background:#fff6dd;border-color:#f0d58a;color:#5c4300}
+body:not(.pub) .note.bad{background:#fde6ea;border-color:#f3b3bf;color:#7a1226}
+body:not(.pub) .bars .b{background:#0B0E09;border:0}
+body:not(.pub) .hb i{background:#A8E600;border:1px solid #8fc400}
+body:not(.pub) .search{min-width:180px}
+@media (max-width:640px){body:not(.pub) .search{min-width:0}}
+body:not(.pub) .search input{background:#fff}
+body:not(.pub) .pill-demo{white-space:nowrap}
+@media (max-width:1180px){body:not(.pub) .pill-demo{display:none}}
+.pub-leg-n{font-size:1.5rem;letter-spacing:1.5px;color:var(--ac)}
+.pub-hc .pub-tabs{margin:10px 0 14px}
+.pub-hc h3{margin:8px 0}

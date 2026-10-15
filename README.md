@@ -13,14 +13,14 @@ Para que el equipo y el cliente la recorran y definan correcciones. **No es el s
 | **Google Drive** | **Drive 1**: ficha de datos y documentación. **Drive 2**: historial clínico. Enlace editable por paciente (sólo https de Google). |
 | **REPROCANN** | Estado de la ONG (Válido / Vencido / En trámite) con fecha de vencimiento y días restantes, y vigencia de cada paciente con alertas. |
 | **Dispensaciones y trazabilidad** | Lotes con stock por movimientos (frascos, gramos, aceites, cremas, comestibles), anulación con motivo, informe por período, CSV y auditoría. Etiqueta imprimible con **QR al formulario de Seguimiento médico**. |
-| **Aportes voluntarios y Factura C** | Registro de aportes y **Factura C simulada** (más nota de crédito C). Marcada como *documento de demostración sin validez fiscal*. |
+| **Donaciones voluntarias y Factura C** | Registro de aportes y **Factura C simulada** (más nota de crédito C). Marcada como *documento de demostración sin validez fiscal*. |
 | **Seguimiento médico** | Formulario mensual con las mismas opciones del formulario de Google. |
 
 ### Módulos de gestión (Sistema VB adaptado a la ONG)
 
 | Módulo | Qué hace |
 |---|---|
-| **Dashboard** | Aportes, dispensaciones, egresos y resultado de caja estimado; filtros por período, medio y Factura C; tabla equivalente y CSV. |
+| **Dashboard** | Donaciones, dispensaciones, egresos y resultado de caja estimado; filtros por período, medio y Factura C; tabla equivalente y CSV. |
 | **Caja · Arqueo y cierre · Cajas cerradas** | Apertura, ingresos/egresos con **rubro financiero obligatorio**, arqueo por denominaciones, cierre con foto inmutable y sello SHA-256, historial en lista y calendario, alerta de días sin cierre, ficha A4 y verificación de integridad. |
 | **Inventario** | Insumos y movimientos de stock, stock mínimo, rubros de inventario, historial y CSV. |
 | **Fidelización** | Tarjeta de sellos con QR firmado (1 por día), cupones con límites, membresías con consentimiento versionado y aporte asociado. |
@@ -31,7 +31,7 @@ Para que el equipo y el cliente la recorran y definan correcciones. **No es el s
 | **Importar / Exportar** | Pacientes, personal, insumos de inventario y servicios del menú, desde CSV, Excel (.xlsx) o pegando desde una planilla; 3 pasos con errores por fila, modo prueba, duplicados, atomicidad y deshacer lote; exportaciones con neutralización de fórmulas. |
 | **Usuarios y permisos · Auditoría · Configuración** | 4 roles × módulos (simulado en el navegador), auditoría con cadena de hashes verificable, módulos activables y rubros financieros. |
 
-Terminología de ONG en toda la interfaz: paciente/socio, dispensación, aporte voluntario, Factura C ante ARCA.
+Terminología de ONG en toda la interfaz: paciente/socio, dispensación, donación voluntaria, Factura C ante ARCA.
 
 ## Cómo probarla
 
@@ -54,6 +54,15 @@ Terminología de ONG en toda la interfaz: paciente/socio, dispensación, aporte 
 - El ingreso (usuarios y claves con hash) y los roles funcionan sólo en el navegador: es una demostración, no seguridad real. En el sistema real se validan en el servidor.
 - Los roles y permisos se simulan en el navegador; en el sistema real se validan en el servidor.
 
+## Novedades de la versión 5
+
+- **Estética** de la demo anterior (menú público oscuro con verde lima, panel claro con barra lateral negra): `css/theme.css`.
+- **Historia Clínica · Solicitud Reprocann** en el menú público (`js/m-hc.js`): formulario de alta + datos médicos; cada envío crea un paciente nuevo con **legajo único** (`L-aammdd-XXXXXX`) y carpeta de Drive sugerida única. Un documento repetido nunca pisa la ficha: queda marcado como posible duplicado. Los datos quedan **sin verificar** hasta que el equipo los revise.
+- **Turnero Digital** para pacientes/socios en la misma sección, con WhatsApp directo; el equipo confirma o rechaza desde Administración → Menú público.
+- **Donación** reemplaza a "Aporte" en toda la interfaz (español e inglés).
+- **Documento opcional** (DNI, CUIT o CUIL) en pacientes, dispensaciones, donaciones e importación; Factura C simulada a consumidor final sin documento. El tope desde el cual se pide documento es configurable en Ajustes [VERIFICAR en arca.gob.ar].
+- Identificación interna: `js/ident.js`. Pruebas automáticas: 7 suites + `test6` (41 controles de esta versión).
+
 ## Estructura
 
 ```
@@ -65,6 +74,9 @@ js/app.js         pantallas base y navegación
 js/ext.js         caja, auditoría, fidelización, personal, semilla ampliada
 js/m-*.js         módulos (caja, gestión, menú público, sistema)
 css/mods.css      estilos de los módulos nuevos
+css/theme.css     estética (tokens y ajustes visuales)
+js/ident.js       legajo único, documento opcional, búsqueda de pacientes
+js/m-hc.js        historia clínica pública y turnero
 js/qrcode.js      generador de QR (qrcode-generator, MIT)
 assets/           logo e íconos
 ```

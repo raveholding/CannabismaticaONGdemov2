@@ -177,7 +177,7 @@
      FIDELIZACIÓN: sellos, cupones, membresías
      =================================================================== */
   CM.fid = { tab: 'sellos' };
-  var BENEF = ['Taller sin aporte sugerido', 'Seguimiento médico prioritario', 'Material de lectura impreso'];
+  var BENEF = ['Taller sin donación sugerida', 'Seguimiento médico prioritario', 'Material de lectura impreso'];
   CM.firmaSello = function (dni) { return CM.sha256('cm-demo-sello|' + dni).slice(0, 8); };
   function cuponEstado(c) {
     var h = CM.hoy();
@@ -199,28 +199,28 @@
       var pacs = Object.keys(db.pacientes).map(function (k) { return db.pacientes[k]; }).map(function (p) { return { p: p, s: CM.saldoSellos(p.dni) }; }).sort(function (a, b) { return b.s - a.s; });
       var led = db.sellos.slice().sort(function (a, b) { return b.ts.localeCompare(a.ts); }).slice(0, 12);
       return head + tb + '<div class="grid g2"><section class="card"><h2>Programa de sellos</h2><p style="color:var(--mu)">Un sello por día y por paciente, validado en el mostrador. Con <b>' + meta + '</b> sellos se canjea un beneficio. El alta desde el menú público <b>no</b> da sellos.</p>' +
-        '<form data-form="sello" class="f" autocomplete="off" novalidate><div class="f f2">' + fl('DNI del paciente *', '<input class="in" name="dni" inputmode="numeric" maxlength="9" placeholder="Ej.: 99000001">') + fl('Motivo', '<select class="in" name="motivo">' + ['Participación en taller', 'Seguimiento médico realizado', 'Voluntariado', 'Asistencia a curso'].map(function (m) { return opt(m, m); }).join('') + '</select>') + '</div><p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">' + CM.icon('star') + 'Otorgar sello de hoy</button></div></form></section>' +
+        '<form data-form="sello" class="f" autocomplete="off" novalidate><div class="f f2">' + fl('Paciente * (nombre, legajo, DNI, CUIT o CUIL)', '<input class="in" name="dni" autocomplete="off" placeholder="Ej.: 99000001 o el legajo">') + fl('Motivo', '<select class="in" name="motivo">' + ['Participación en taller', 'Seguimiento médico realizado', 'Voluntariado', 'Asistencia a curso'].map(function (m) { return opt(m, m); }).join('') + '</select>') + '</div><p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">' + CM.icon('star') + 'Otorgar sello de hoy</button></div></form></section>' +
         '<section class="card"><h2>Últimos movimientos</h2><div class="tw"><table><thead><tr><th>Fecha</th><th>Paciente</th><th>Movimiento</th></tr></thead><tbody>' + led.map(function (s) { return '<tr><td>' + esc(CM.fmtFecha(s.fecha)) + '</td><td>' + esc(U.nombreCorto(U.nombreDe(s.dni))) + '</td><td>' + (s.tipo === 'sello' ? '+1 sello' : 'Canje (' + s.cant + ') · ' + esc(s.motivo)) + '</td></tr>'; }).join('') + '</tbody></table></div></section></div>' +
         '<section class="card" style="margin-top:14px"><h2>Saldo de cada paciente</h2><div class="tw"><table><thead><tr><th>Paciente</th><th>Progreso</th><th class="n">Sellos</th><th>Acciones</th></tr></thead><tbody>' + pacs.map(function (x) {
-          return '<tr><td>' + esc(U.nombreCorto(x.p.nombre)) + '<br><small class="hint">DNI ' + esc(x.p.dni) + '</small></td><td style="min-width:140px"><div class="prog" role="img" aria-label="' + x.s + ' de ' + meta + ' sellos"><i style="width:' + Math.min(100, Math.round(x.s / meta * 100)) + '%"></i></div></td><td class="n">' + x.s + ' / ' + meta + '</td><td class="acts"><button class="btn sm" data-act="sello-hoy" data-dni="' + esc(x.p.dni) + '">+ Sello</button><button class="btn sm" data-act="sello-canje" data-dni="' + esc(x.p.dni) + '"' + (x.s < meta ? ' disabled' : '') + '>Canjear</button><button class="btn sm" data-act="sello-tarjeta" data-dni="' + esc(x.p.dni) + '">' + CM.icon('qr') + 'Tarjeta</button></td></tr>';
+          return '<tr><td>' + esc(U.nombreCorto(x.p.nombre)) + '<br><small class="hint">' + esc(CM.idTxt(x.p)) + '</small></td><td style="min-width:140px"><div class="prog" role="img" aria-label="' + x.s + ' de ' + meta + ' sellos"><i style="width:' + Math.min(100, Math.round(x.s / meta * 100)) + '%"></i></div></td><td class="n">' + x.s + ' / ' + meta + '</td><td class="acts"><button class="btn sm" data-act="sello-hoy" data-dni="' + esc(x.p.dni) + '">+ Sello</button><button class="btn sm" data-act="sello-canje" data-dni="' + esc(x.p.dni) + '"' + (x.s < meta ? ' disabled' : '') + '>Canjear</button><button class="btn sm" data-act="sello-tarjeta" data-dni="' + esc(x.p.dni) + '">' + CM.icon('qr') + 'Tarjeta</button></td></tr>';
         }).join('') + '</tbody></table></div></section>';
     }
     if (f.tab === 'cupones') {
       return head + tb + '<div class="grid g2"><section class="card"><h2>Canjear un cupón</h2><form data-form="cupon-canje" class="f" autocomplete="off" novalidate>' +
-        '<div class="f f2">' + fl('Código del cupón *', '<input class="in" name="cod" placeholder="Ej.: BIENVENIDA" style="text-transform:uppercase">') + fl('DNI del paciente *', '<input class="in" name="dni" inputmode="numeric" maxlength="9" placeholder="Ej.: 99000002">') + '</div>' +
-        '<div class="f f2">' + fl('Aporte sugerido del taller o curso (opcional, para calcular)', '<input class="in num" name="base" inputmode="decimal" placeholder="0">') + fl('Referencia (taller / curso) — evita canjes repetidos', '<input class="in" name="ref" placeholder="Ej.: Taller de cultivo 12/11">') + '</div>' +
+        '<div class="f f2">' + fl('Código del cupón *', '<input class="in" name="cod" placeholder="Ej.: BIENVENIDA" style="text-transform:uppercase">') + fl('Paciente * (nombre, legajo, DNI, CUIT o CUIL)', '<input class="in" name="dni" autocomplete="off" placeholder="Ej.: 99000001 o el legajo">') + '</div>' +
+        '<div class="f f2">' + fl('Donación sugerida del taller o curso (opcional, para calcular)', '<input class="in num" name="base" inputmode="decimal" placeholder="0">') + fl('Referencia (taller / curso) — evita canjes repetidos', '<input class="in" name="ref" placeholder="Ej.: Taller de cultivo 12/11">') + '</div>' +
         '<p class="err" role="alert" data-err></p><div class="note info" data-res hidden></div><div class="row"><button class="btn" type="button" data-act="cupon-validar">Validar</button><button class="btn pri" type="submit">Canjear cupón</button></div></form></section>' +
         '<section class="card"><h2>Cupones</h2><div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="cupon-nuevo">' + CM.icon('plus') + 'Nuevo cupón</button></div><div class="tw"><table><thead><tr><th>Código</th><th>Bonificación</th><th>Vigencia</th><th class="n">Usos</th><th>Estado</th><th></th></tr></thead><tbody>' + db.cupones.map(function (c) {
           var es = cuponEstado(c);
           return '<tr><td><b>' + esc(c.cod) + '</b><br><small class="hint">' + esc(c.desc) + '</small></td><td>' + (c.tipo === 'pct' ? c.valor + ' %' : esc(money(c.valor))) + '</td><td>' + esc(CM.fmtFecha(c.desde)) + ' a ' + esc(CM.fmtFecha(c.hasta)) + '</td><td class="n">' + CM.usosCupon(c.cod) + (c.max ? ' / ' + c.max : '') + '</td><td><span class="pill ' + es[1] + '">' + es[0] + '</span></td><td><button class="btn sm" data-act="cupon-pausa" data-id="' + esc(c.id) + '">' + (c.estado === 'pausado' ? 'Reactivar' : 'Pausar') + '</button></td></tr>';
-        }).join('') + '</tbody></table></div><p class="hint">Un cupón de bonificación reduce el <i>aporte sugerido</i> de un taller o curso. No se acumula con otros: se aplica uno por operación.</p></section></div>';
+        }).join('') + '</tbody></table></div><p class="hint">Un cupón de bonificación reduce el <i>donación sugerida</i> de un taller o curso. No se acumula con otros: se aplica uno por operación.</p></section></div>';
     }
     // membresías
     var ms = db.membresias.slice().sort(function (a, b) { return b.id.localeCompare(a.id); });
     return head + tb + '<div class="grid g3"><div class="card kpi"><div class="l">Socios con cuota activa</div><div class="v">' + ms.filter(function (m) { return CM.estadoMemb(m) === 'activa'; }).length + '</div></div><div class="card kpi"><div class="l">Pendientes de pago</div><div class="v">' + ms.filter(function (m) { return CM.estadoMemb(m) === 'pendiente'; }).length + '</div></div><div class="card kpi"><div class="l">Impagas o vencidas</div><div class="v">' + ms.filter(function (m) { return CM.estadoMemb(m) === 'vencida'; }).length + '</div></div></div>' +
       '<section class="card" style="margin-top:14px"><div class="row sp"><h2>Membresías de socios</h2><button class="btn pri sm" data-act="memb-nueva">' + CM.icon('plus') + 'Nueva membresía</button></div><div class="tw"><table><thead><tr><th>Socio/a</th><th>Plan</th><th>Cuota</th><th>Pagada hasta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>' + ms.map(function (m) {
         var pl = CM.plan(m.plan);
-        return '<tr><td>' + esc(U.nombreCorto(U.nombreDe(m.dni))) + '<br><small class="hint">DNI ' + esc(m.dni) + ' · aceptó términos ' + esc(m.cons.version) + ' el ' + esc(CM.fmtFecha(m.cons.fecha)) + '</small></td><td>' + esc(pl ? pl.n : '—') + '</td><td>' + esc(pl ? money(pl.cent) : '—') + '</td><td>' + (m.pagadoHasta ? esc(CM.fmtFecha(m.pagadoHasta)) : '—') + '</td><td>' + membPill(m) + '</td><td class="acts">' +
+        return '<tr><td>' + esc(U.nombreCorto(U.nombreDe(m.dni))) + '<br><small class="hint">' + esc(CM.idTxt(CM.paciente(m.dni))) + ' · aceptó términos ' + esc(m.cons.version) + ' el ' + esc(CM.fmtFecha(m.cons.fecha)) + '</small></td><td>' + esc(pl ? pl.n : '—') + '</td><td>' + esc(pl ? money(pl.cent) : '—') + '</td><td>' + (m.pagadoHasta ? esc(CM.fmtFecha(m.pagadoHasta)) : '—') + '</td><td>' + membPill(m) + '</td><td class="acts">' +
           (m.estado === 'cancelada' ? '' : '<button class="btn sm" data-act="memb-pago" data-id="' + esc(m.id) + '">Confirmar pago</button><button class="btn sm" data-act="memb-pausa" data-id="' + esc(m.id) + '">' + (m.estado === 'pausada' ? 'Reanudar' : 'Pausar') + '</button><button class="btn sm bad" data-act="memb-cancel" data-id="' + esc(m.id) + '">Cancelar</button>') + '</td></tr>';
       }).join('') + '</tbody></table></div><div class="note info" style="margin-top:12px">La membresía no figura <b>activa</b> hasta que se confirma el pago de la cuota. Esta es la cuota que los socios aportan a la fundación; no tiene relación con ningún cobro de Rave Holding por el sistema.</div></section>' +
       '<section class="card" style="margin-top:14px"><h2>Planes</h2><ul class="tl">' + db.planes.map(function (p) { return '<li class="rubrow"><span><b>' + esc(p.n) + '</b> · ' + esc(money(p.cent)) + ' (' + esc(p.per) + ')<br><small class="hint">' + esc(p.ben) + '</small></span></li>'; }).join('') + '</ul></section>';
@@ -228,15 +228,15 @@
   CM.acts['fid-tab'] = function (t) { CM.fid.tab = t.getAttribute('data-v'); render(); };
   CM.forms.sello = function (f) {
     if (!CM.need('fidelizacion', 'oper')) return;
-    var dni = CM.soloDigitos(f.elements.dni.value), r = CM.otorgarSello(dni, f.elements.motivo.value);
+    var dni = (CM.resolverPac(f.elements.dni.value) || { dni: '' }).dni, r = CM.otorgarSello(dni, f.elements.motivo.value);
     if (r.err) return fail(f, 'dni', r.err);
-    CM.audit('Sello otorgado', 'DNI ' + dni + ' · ' + r.ok.id); CM.save(); render(); CM.toast('Sello otorgado.');
+    CM.audit('Sello otorgado', 'Legajo ' + CM.legDe(dni) + ' · ' + r.ok.id); CM.save(); render(); CM.toast('Sello otorgado.');
   };
   CM.acts['sello-hoy'] = function (t) {
     if (!CM.need('fidelizacion', 'oper')) return;
     var r = CM.otorgarSello(t.getAttribute('data-dni'), 'Participación en taller');
     if (r.err) { CM.toast(r.err, true); return; }
-    CM.audit('Sello otorgado', 'DNI ' + t.getAttribute('data-dni') + ' · ' + r.ok.id); CM.save(); render(); CM.toast('Sello otorgado.');
+    CM.audit('Sello otorgado', 'Legajo ' + CM.legDe(t.getAttribute('data-dni')) + ' · ' + r.ok.id); CM.save(); render(); CM.toast('Sello otorgado.');
   };
   CM.acts['sello-canje'] = function (t) {
     if (!CM.need('fidelizacion', 'oper')) return;
@@ -246,12 +246,12 @@
   CM.forms['sello-canje'] = function (f) {
     var dni = f.elements.dni.value, r = CM.canjearSellos(dni, f.elements.b.value);
     if (r.err) return fail(f, 'b', r.err);
-    CM.audit('Canje de sellos', 'DNI ' + dni + ' · ' + f.elements.b.value); CM.save(); CM.modal.close(true); render(); CM.toast('Canje registrado.');
+    CM.audit('Canje de sellos', 'Legajo ' + CM.legDe(dni) + ' · ' + f.elements.b.value); CM.save(); CM.modal.close(true); render(); CM.toast('Canje registrado.');
   };
   function tarjetaHtml(p) {
     var s = CM.saldoSellos(p.dni), meta = CM.db.cfg.sellosMeta, tok = 'CM-S|' + p.dni + '|' + CM.firmaSello(p.dni), cells = '';
     for (var i = 0; i < meta; i++) cells += '<span class="' + (i < Math.min(s, meta) ? 'on' : '') + '">' + (i < Math.min(s, meta) ? '★' : '') + '</span>';
-    return '<div class="tarj"><div class="tj-h"><img src="assets/logo.png" alt="Cannabismatica"></div><div class="tj-b"><div class="tj-n">' + esc(U.nombreCorto(p.nombre)) + '</div><div class="tj-d">DNI ' + esc(p.dni) + '</div><div class="tj-s">' + cells + '</div></div><div class="tj-q">' + CM.qrSvg(tok) + '</div><div class="tj-f">Tarjeta de participación · ejemplo</div></div>';
+    return '<div class="tarj"><div class="tj-h"><img src="assets/logo.png" alt="Cannabismatica"></div><div class="tj-b"><div class="tj-n">' + esc(U.nombreCorto(p.nombre)) + '</div><div class="tj-d">' + esc(CM.docCorto(p)) + '</div><div class="tj-s">' + cells + '</div></div><div class="tj-q">' + CM.qrSvg(tok) + '</div><div class="tj-f">Tarjeta de participación · ejemplo</div></div>';
   }
   CM.acts['sello-tarjeta'] = function (t) {
     var p = CM.paciente(t.getAttribute('data-dni'));
@@ -265,21 +265,21 @@
     var base = f.elements.base.value.trim() ? CM.parseMonto(f.elements.base.value) : NaN, txt = c.desc;
     if (!isNaN(base) && base > 0) {
       var bon = c.tipo === 'pct' ? Math.round(base * c.valor / 100) : Math.min(c.valor, base);
-      txt = 'Bonificación de ' + money(bon) + ' → aporte sugerido final ' + money(base - bon) + '.';
+      txt = 'Bonificación de ' + money(bon) + ' → donación sugerida final ' + money(base - bon) + '.';
     }
     return txt;
   }
   CM.acts['cupon-validar'] = function (t) {
-    var f = t.closest('form'), dni = CM.soloDigitos(f.elements.dni.value), v = CM.validarCupon(f.elements.cod.value, dni);
+    var f = t.closest('form'), dni = (CM.resolverPac(f.elements.dni.value) || { dni: '' }).dni, v = CM.validarCupon(f.elements.cod.value, dni);
     $('[data-err]', f).textContent = '';
     if (v.err) resCupon(f, v.err, false); else resCupon(f, 'Cupón válido. ' + calcCupon(f, v.ok), true);
   };
   CM.forms['cupon-canje'] = function (f) {
     if (!CM.need('fidelizacion', 'oper')) return;
-    var dni = CM.soloDigitos(f.elements.dni.value), r = CM.canjearCupon(f.elements.cod.value, dni, f.elements.ref.value.trim());
+    var dni = (CM.resolverPac(f.elements.dni.value) || { dni: '' }).dni, r = CM.canjearCupon(f.elements.cod.value, dni, f.elements.ref.value.trim());
     if (r.err) { resCupon(f, r.err, false); return; }
     var c = CM.cupon(f.elements.cod.value);
-    CM.audit('Canje de cupón', c.cod + ' · DNI ' + dni + ' · ' + (f.elements.ref.value.trim() || 'sin referencia')); CM.save();
+    CM.audit('Canje de cupón', c.cod + ' · Legajo ' + CM.legDe(dni) + ' · ' + (f.elements.ref.value.trim() || 'sin referencia')); CM.save();
     CM.toast('Cupón canjeado. ' + calcCupon(f, c)); render();
   };
   CM.acts['cupon-pausa'] = function (t) {
@@ -312,31 +312,31 @@
   /* membresías */
   CM.acts['memb-nueva'] = function () {
     if (!CM.need('fidelizacion', 'oper')) return;
-    CM.modal.open({ title: 'Nueva membresía de socio/a', body: '<form id="fMB" data-form="memb-nueva" class="f" autocomplete="off" novalidate>' + fl('DNI del paciente *', '<input class="in" name="dni" inputmode="numeric" maxlength="9" placeholder="Ej.: 99000003">') +
+    CM.modal.open({ title: 'Nueva membresía de socio/a', body: '<form id="fMB" data-form="memb-nueva" class="f" autocomplete="off" novalidate>' + fl('Paciente * (nombre, legajo, DNI, CUIT o CUIL)', '<input class="in" name="dni" autocomplete="off" placeholder="Ej.: 99000001 o el legajo">') +
       fl('Plan *', '<select class="in" name="plan">' + CM.db.planes.map(function (p) { return opt(p.id, p.n + ' · ' + money(p.cent) + ' (' + p.per + ')'); }).join('') + '</select>') +
-      '<div class="note info">Términos v1.0 [VERIFICAR con asesor/a legal]: la cuota es un aporte voluntario y periódico que sostiene a la fundación. Se puede pausar o cancelar en cualquier momento, sin obstáculos. La membresía se activa cuando se confirma el pago.</div>' +
+      '<div class="note info">Términos v1.0 [VERIFICAR con asesor/a legal]: la cuota es una donación voluntaria y periódico que sostiene a la fundación. Se puede pausar o cancelar en cualquier momento, sin obstáculos. La membresía se activa cuando se confirma el pago.</div>' +
       '<label class="chk"><input type="checkbox" name="ok"><span>La persona leyó y acepta los términos de la membresía (v1.0) *</span></label><p class="err" role="alert" data-err></p></form>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fMB">Crear membresía</button>' });
   };
   CM.forms['memb-nueva'] = function (f) {
-    var e = f.elements, dni = CM.soloDigitos(e.dni.value);
-    if (!CM.paciente(dni)) return fail(f, 'dni', 'Ese DNI no existe. Creá primero al paciente.');
+    var e = f.elements, dni = (CM.resolverPac(e.dni.value) || { dni: '' }).dni;
+    if (!CM.paciente(dni)) return fail(f, 'dni', 'No encontré a ese paciente: escribí su nombre, legajo o documento. Si todavía no está registrado, creá primero su ficha.');
     if (!e.ok.checked) return fail(f, 'ok', 'Falta el consentimiento: es obligatorio y queda registrado con su versión.');
     if (CM.db.membresias.some(function (m) { return m.dni === dni && ['cancelada'].indexOf(m.estado) < 0; })) return fail(f, 'dni', 'Ese paciente ya tiene una membresía vigente.');
     CM.db.membresias.push({ id: CM.nextId('MB'), dni: dni, plan: e.plan.value, desde: CM.hoy(), pagadoHasta: '', cons: { version: 'v1.0', fecha: CM.hoy() }, estado: 'ok' });
-    CM.audit('Membresía creada', 'DNI ' + dni + ' · ' + e.plan.value + ' · consentimiento v1.0'); CM.save(); CM.modal.close(true); render(); CM.toast('Membresía creada: queda pendiente hasta confirmar el pago.');
+    CM.audit('Membresía creada', 'Legajo ' + CM.legDe(dni) + ' · ' + e.plan.value + ' · consentimiento v1.0'); CM.save(); CM.modal.close(true); render(); CM.toast('Membresía creada: queda pendiente hasta confirmar el pago.');
   };
   CM.acts['memb-pago'] = function (t) {
     if (!CM.need('fidelizacion', 'oper')) return;
     var m = sel(CM.db.membresias, t.getAttribute('data-id')), pl = CM.plan(m.plan);
     CM.modal.open({ title: 'Confirmar pago de la cuota', body: '<form id="fMP" data-form="memb-pago" class="f"><input type="hidden" name="id" value="' + esc(m.id) + '"><p>' + esc(U.nombreCorto(U.nombreDe(m.dni))) + ' · ' + esc(pl.n) + ' · <b>' + esc(money(pl.cent)) + '</b></p>' +
-      (pl.cent > 0 ? fl('Medio del aporte', '<select class="in" name="medio">' + Object.keys(CM.MEDIOS).map(function (k) { return opt(k, CM.MEDIOS[k]); }).join('') + '</select>') + '<label class="chk"><input type="checkbox" name="fc"><span>Emitir Factura C simulada</span></label><div class="note info">Se registra un aporte voluntario (entra a la caja abierta y al dashboard). Sólo confirmá si ya recibiste el aporte.</div>' : '<div class="note info">Cuota bonificada: no genera aporte.</div>') +
+      (pl.cent > 0 ? fl('Medio de la donación', '<select class="in" name="medio">' + Object.keys(CM.MEDIOS).map(function (k) { return opt(k, CM.MEDIOS[k]); }).join('') + '</select>') + '<label class="chk"><input type="checkbox" name="fc"><span>Emitir Factura C simulada</span></label><div class="note info">Se registra una donación voluntaria (entra a la caja abierta y al dashboard). Sólo confirmá si ya recibiste el aporte.</div>' : '<div class="note info">Cuota bonificada: no genera aporte.</div>') +
       '</form>', footer: '<button class="btn" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fMP">Confirmar pago recibido</button>' });
   };
   CM.forms['memb-pago'] = function (f) {
     var e = f.elements, m = sel(CM.db.membresias, e.id.value), pl = CM.plan(m.plan);
     if (pl.cent > 0) {
       var a = { id: CM.nextId('A'), fecha: CM.hoy(), ts: new Date().toISOString(), dni: m.dni, disp: '', cent: pl.cent, medio: e.medio.value, concepto: 'Contribución', obs: 'Cuota de socio/a · ' + pl.n, user: CM.db.cfg.operador, estado: 'registrado', comp: '' };
-      CM.db.aportes.push(a); CM.audit('Aporte voluntario', a.id + ' · cuota de socio · ' + money(a.cent));
+      CM.db.aportes.push(a); CM.audit('Donación voluntaria', a.id + ' · cuota de socio · ' + money(a.cent));
       if (e.fc && e.fc.checked) { var c = CM.emitirFacturaC(a); CM.audit('Factura C simulada', c.pv + '-' + c.nro + ' · ' + a.id); }
     }
     var base = m.pagadoHasta && m.pagadoHasta >= CM.hoy() ? m.pagadoHasta : CM.hoy();

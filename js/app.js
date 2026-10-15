@@ -7,7 +7,7 @@
 
   var NAV = CM.NAV = [
     ['inicio', 'Inicio', 'home', 'inicio'], ['pacientes', 'Pacientes', 'users', 'pacientes'], ['dispensaciones', 'Dispensaciones', 'flask', 'dispensaciones'],
-    ['aportes', 'Aportes', 'heart', 'aportes'], ['reprocann', 'REPROCANN', 'shield', 'reprocann'], ['trazabilidad', 'Trazabilidad', 'chart', 'trazabilidad'],
+    ['aportes', 'Donaciones', 'heart', 'aportes'], ['reprocann', 'REPROCANN', 'shield', 'reprocann'], ['trazabilidad', 'Trazabilidad', 'chart', 'trazabilidad'],
     ['-', 'Gestión'],
     ['dashboard', 'Dashboard', 'chart', 'dashboard'], ['caja', 'Caja', 'cash', 'caja'], ['cierre', 'Arqueo y cierre', 'lock', 'cierre'], ['cajas-cerradas', 'Cajas cerradas', 'archive', 'cerradas'],
     ['inventario', 'Inventario', 'box', 'inventario'], ['fidelizacion', 'Fidelización', 'star', 'fidelizacion'], ['personal', 'Personal y fichaje', 'clock', 'personal'], ['tareas', 'Tareas y organigrama', 'tasks', 'tareas'],
@@ -17,7 +17,7 @@
     ['nube', 'Nube', 'cloud', 'nube'], ['perifericos', 'Periféricos y ticket', 'plug', 'perifericos'], ['importexport', 'Importar / Exportar', 'swap', 'importexport'], ['integraciones', 'Integraciones', 'link', 'integraciones'],
     ['usuarios', 'Usuarios y permisos', 'key', 'usuarios'], ['auditoria', 'Auditoría', 'doc', 'auditoria'], ['ajustes', 'Configuración', 'gear', 'ajustes']
   ];
-  var TITULOS = CM.TITULOS = { inicio: 'Inicio', pacientes: 'Pacientes', paciente: 'Ficha del paciente', dispensaciones: 'Dispensaciones', aportes: 'Aportes voluntarios y Factura C', reprocann: 'REPROCANN', trazabilidad: 'Trazabilidad', ajustes: 'Configuración' };
+  var TITULOS = CM.TITULOS = { inicio: 'Inicio', pacientes: 'Pacientes', paciente: 'Ficha del paciente', dispensaciones: 'Dispensaciones', aportes: 'Donaciones voluntarias y Factura C', reprocann: 'REPROCANN', trazabilidad: 'Trazabilidad', ajustes: 'Configuración' };
 
   /* ---------- helpers de vista ---------- */
   function uTxt(u, n) {
@@ -42,7 +42,10 @@
   function iniciales(n) { return String(n || '?').replace(/\(.*?\)/g, '').trim().split(/\s+/).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join(''); }
   function nombreCorto(n) { return String(n || '').replace(/\s*\((ficticio|ficticia)\)\s*/i, '').trim(); }
   function telWa(t) { var d = CM.soloDigitos(t).replace(/^0+/, '').replace(/^549?/, ''); return '549' + d; }
-  function nombreDe(dni) { var p = CM.paciente(dni); return p ? p.nombre : 'DNI ' + dni; }
+  function nombreDe(dni) { var p = CM.paciente(dni); return p ? p.nombre : (dni ? 'Paciente ' + dni : 'Sin identificar'); }
+  /* quién figura en una donación o comprobante: paciente, donante cargado a mano o consumidor final */
+  function quienDe(x) { var p = x.dni ? CM.paciente(x.dni) : null; if (p) return { nom: p.nombre, doc: CM.docCorto(p), pac: p }; var r = x.rec || {}; return { nom: r.nombre || 'Consumidor final', doc: r.doc ? CM.fmtDoc(r.doc) : 'Sin documento', pac: null }; }
+  CM.quienDe = quienDe;
   function tablaVacia(msg) { return '<div class="empty">' + esc(msg) + '</div>'; }
   function lastDisp(dni) {
     var l = CM.dispDe(dni).filter(function (d) { return !d.anulada; }).map(function (d) { return d.fecha; }).sort().pop();
@@ -95,21 +98,16 @@
   function hideSugg() { var s = $('#sugg'); s.hidden = true; s.innerHTML = ''; $('#q').setAttribute('aria-expanded', 'false'); }
   function buscar(q) {
     q = String(q || '').trim();
-    var d = CM.soloDigitos(q), res = [], db = CM.db.pacientes;
-    var onlyNum = /^[\d.\s]+$/.test(q);
-    Object.keys(db).forEach(function (k) {
-      var p = db[k];
-      if (onlyNum ? (d.length >= 2 && k.indexOf(d) === 0) : (CM.norm(p.nombre).indexOf(CM.norm(q)) > -1)) res.push(p);
-    });
-    return { res: res.slice(0, 6), dni: onlyNum ? d : '', exacto: onlyNum && db[d] ? db[d] : null };
+    var d = CM.soloDigitos(q), res = CM.buscarPacs(q), onlyNum = /^[\d.\-\s]+$/.test(q);
+    return { res: res.slice(0, 6), todos: res.length, dni: onlyNum ? d : '', exacto: CM.resolverPac(q) };
   }
   function irBuscar(q) {
     var b = buscar(q);
     if (b.exacto) { g.location.hash = '#/paciente/' + b.exacto.dni; return; }
     if (b.res.length === 1) { g.location.hash = '#/paciente/' + b.res[0].dni; return; }
-    if (b.dni && b.dni.length >= 6 && b.dni.length <= 9) { modalNuevoPaciente(b.dni); return; }
+    if (b.dni && b.dni.length >= 6 && b.dni.length <= 11 && !b.res.length) { modalNuevoPaciente(b.dni); return; }
     if (b.res.length > 1) { g.location.hash = '#/pacientes'; CM.toast('Hay varios resultados: elegí uno de la lista.'); return; }
-    CM.toast('No encontré pacientes. Probá con el DNI completo (sin puntos).', true);
+    CM.toast('No encontré pacientes. Probá con el nombre, el legajo, el DNI, CUIT o CUIL.', true);
   }
   document.addEventListener('input', function (ev) {
     var t = ev.target;
@@ -118,10 +116,10 @@
       if (v.length < 2) { hideSugg(); return; }
       var b = buscar(v), h = '';
       b.res.forEach(function (p) {
-        h += '<button type="button" data-act="goto" data-dni="' + esc(p.dni) + '"><span><b>' + esc(nombreCorto(p.nombre)) + '</b><br><small>DNI ' + esc(p.dni) + '</small></span>' + repPill(CM.estadoRep(p.reprocann)) + '</button>';
+        h += '<button type="button" data-act="goto" data-dni="' + esc(p.dni) + '"><span><b>' + esc(nombreCorto(p.nombre)) + '</b><br><small>' + esc(CM.idTxt(p)) + '</small></span>' + repPill(CM.estadoRep(p.reprocann)) + '</button>';
       });
-      if (b.dni && !b.exacto && b.dni.length >= 6 && b.dni.length <= 9) {
-        h += '<button type="button" data-act="alta-dni" data-dni="' + esc(b.dni) + '"><span><b>Paciente nuevo con DNI ' + esc(b.dni) + '</b><br><small>Abrir ingreso breve</small></span>' + CM.icon('plus') + '</button>';
+      if (b.dni && !b.exacto && !b.res.length && b.dni.length >= 6 && b.dni.length <= 11) {
+        h += '<button type="button" data-act="alta-dni" data-dni="' + esc(b.dni) + '"><span><b>Paciente nuevo con documento ' + esc(b.dni) + '</b><br><small>Abrir ingreso breve</small></span>' + CM.icon('plus') + '</button>';
       }
       if (!h) h = '<div class="empty">Sin resultados</div>';
       box.innerHTML = h; box.hidden = false; t.setAttribute('aria-expanded', 'true');
@@ -168,6 +166,9 @@
 
     var al = [];
     if (ong.k !== 'valido' || ong.prox) al.push({ t: ong.k === 'vencido' || ong.k === 'sin' ? 'bad' : 'warn', h: '<a href="#/reprocann">Permiso REPROCANN de la ONG</a>: ' + esc(repDetalle(ong)) });
+    var nh = (db.menu && db.menu.hcs || []).filter(function (x) { return x.estado === 'pendiente'; }).length, nt = (db.menu && db.menu.turnos || []).filter(function (x) { return x.estado === 'solicitado'; }).length;
+    if (nh) al.push({ t: 'warn', h: '<a href="#/menu-publico">' + nh + ' solicitud(es) de historia clínica del menú público sin verificar</a>' });
+    if (nt) al.push({ t: 'info', h: '<a href="#/menu-publico">' + nt + ' pedido(s) de turno sin responder</a>' });
     pacs.forEach(function (p) {
       var e = CM.estadoRep(p.reprocann);
       if (e.k === 'vencido') al.push({ t: 'bad', h: '<a href="#/paciente/' + esc(p.dni) + '">' + esc(nombreCorto(p.nombre)) + '</a>: REPROCANN vencido. ' + esc(repDetalle(e)) });
@@ -194,13 +195,13 @@
       return '<tr class="click' + (d.anulada ? ' anulada' : '') + '" data-act="goto" data-dni="' + esc(d.dni) + '"><td>' + CM.fmtFecha(d.fecha) + '</td><td>' + esc(nombreCorto(nombreDe(d.dni))) + '</td><td>' + esc(d.nombre) + '</td><td class="n">' + esc(cantTxt(d.cant, d.unidad)) + '</td></tr>';
     }).join('') + '</tbody></table></div>' : tablaVacia('Todavía no hay dispensaciones.');
 
-    return '<section class="card hero"><h1>Buscar paciente por DNI</h1><p style="margin:0;color:var(--mu)">El DNI es la clave que une la ficha, los Drive, el REPROCANN y la trazabilidad del paciente.</p>' +
-      '<form data-form="buscar" autocomplete="off"><label class="sr" for="hq">DNI del paciente</label><input id="hq" name="q" class="in" inputmode="numeric" placeholder="DNI sin puntos, p. ej. 99000001" aria-describedby="hqh"><button class="btn pri" type="submit">' + CM.icon('search') + 'Buscar</button><button class="btn" type="button" data-act="nuevo-paciente">' + CM.icon('plus') + 'Nuevo paciente</button></form>' +
-      '<p id="hqh" class="hint" style="margin:10px 0 0">Datos de demostración: probá con 99000001, 99000002 o 99000004. Si el DNI no existe, se abre el ingreso breve.</p></section>' +
+    return '<section class="card hero"><h1>Buscar paciente</h1><p style="margin:0;color:var(--mu)">Cada paciente tiene un <b>legajo único</b> que une la ficha, los Drive, el REPROCANN y la trazabilidad. Buscá por nombre, legajo, DNI, CUIT o CUIL.</p>' +
+      '<form data-form="buscar" autocomplete="off"><label class="sr" for="hq">Nombre, legajo, DNI, CUIT o CUIL del paciente</label><input id="hq" name="q" class="in" placeholder="Nombre, legajo o documento, p. ej. 99000001" aria-describedby="hqh"><button class="btn pri" type="submit">' + CM.icon('search') + 'Buscar</button><button class="btn" type="button" data-act="nuevo-paciente">' + CM.icon('plus') + 'Nuevo paciente</button></form>' +
+      '<p id="hqh" class="hint" style="margin:10px 0 0">Datos de demostración: probá con 99000001, 99000002 o 99000004, o escribí un nombre. El documento es opcional: un paciente puede no tenerlo.</p></section>' +
       '<div class="grid g4" style="margin-top:14px">' +
       '<div class="card kpi"><div class="l">Pacientes en el sistema</div><div class="v">' + pacs.length + '</div><div class="s">' + pacs.filter(function (p) { return p.historiaCompleta; }).length + ' con historia clínica completa</div></div>' +
       '<div class="card kpi"><div class="l">Dispensaciones del mes</div><div class="v">' + dm.length + '</div><div class="s">' + esc(totTxt) + '</div></div>' +
-      '<div class="card kpi"><div class="l">Aportes voluntarios del mes</div><div class="v">' + esc(CM.fmtMoney(apMes)) + '</div><div class="s">Registrados, sin anulaciones</div></div>' +
+      '<div class="card kpi"><div class="l">Donaciones voluntarias del mes</div><div class="v">' + esc(CM.fmtMoney(apMes)) + '</div><div class="s">Registrados, sin anulaciones</div></div>' +
       '<div class="card kpi"><div class="l">REPROCANN de la ONG</div><div class="v" style="font-size:1.2rem;padding:6px 0">' + repPill(ong) + '</div><div class="s">' + esc(repDetalle(ong)) + '</div></div></div>' +
       '<div class="grid g2" style="margin-top:14px"><section class="card"><div class="row sp"><h2>Alertas</h2><span class="pill p-mu">' + al.length + '</span></div>' +
       (al.length ? '<ul class="tl">' + al.slice(0, 10).map(function (a) { return '<li><span class="pill p-' + (a.t === 'bad' ? 'bad' : a.t === 'warn' ? 'warn' : 'info') + '">' + (a.t === 'bad' ? 'Urgente' : a.t === 'warn' ? 'Atención' : 'Aviso') + '</span> ' + a.h + '</li>'; }).join('') + '</ul>' : '<div class="note ok">Sin alertas pendientes.</div>') + '</section>' +
@@ -211,7 +212,7 @@
   function filasPacientes(q, est) {
     q = CM.norm(q); var d = CM.soloDigitos(q);
     var arr = Object.keys(CM.db.pacientes).map(function (k) { return CM.db.pacientes[k]; }).filter(function (p) {
-      var okq = !q || CM.norm(p.nombre).indexOf(q) > -1 || (d && p.dni.indexOf(d) > -1);
+      var dc = CM.docPac(p), okq = !q || CM.norm(p.nombre).indexOf(q) > -1 || (p.leg && p.leg.toLowerCase().indexOf(q) > -1) || (d && (p.dni.indexOf(d) > -1 || (dc && dc.num.indexOf(d) > -1)));
       var e = CM.estadoRep(p.reprocann);
       var oke = !est || e.k === est || (est === 'prox' && e.prox) || (est === 'hist' && !p.historiaCompleta);
       return okq && oke;
@@ -219,7 +220,7 @@
     if (!arr.length) return '<tr><td colspan="6">' + tablaVacia('Sin pacientes con ese filtro.') + '</td></tr>';
     return arr.map(function (p) {
       var e = CM.estadoRep(p.reprocann), u = lastDisp(p.dni);
-      return '<tr class="click" data-act="goto" data-dni="' + esc(p.dni) + '"><td><b>' + esc(p.dni) + '</b></td><td>' + esc(nombreCorto(p.nombre)) + '</td><td>' + esc(p.tel) + '</td><td>' + repPill(e) + '</td><td>' +
+      return '<tr class="click" data-act="goto" data-dni="' + esc(p.dni) + '"><td><b>' + esc(CM.docCorto(p)) + '</b>' + (p.leg ? '<br><small class="hint">' + esc(p.leg) + '</small>' : '') + '</td><td>' + esc(nombreCorto(p.nombre)) + (p.revisar ? ' <span class="pill p-warn">Solicitud web</span>' : '') + '</td><td>' + esc(p.tel) + '</td><td>' + repPill(e) + '</td><td>' +
         (p.historiaCompleta ? '<span class="pill p-ok">Completa</span>' : '<span class="pill p-warn">Pendiente</span>') + '</td><td>' + (u ? CM.fmtFecha(u) : '—') + '</td></tr>';
     }).join('');
   }
@@ -227,7 +228,7 @@
     return '<div class="page-h"><div><h1>Pacientes</h1><p>Identificados por DNI. Tocá una fila para abrir la ficha.</p></div><button class="btn pri" data-act="nuevo-paciente">' + CM.icon('plus') + 'Nuevo paciente (ingreso breve)</button></div>' +
       '<div class="card"><div class="row" style="margin-bottom:12px"><label class="sr" for="fpq">Filtrar por DNI o nombre</label><input id="fpq" class="in" style="max-width:340px" placeholder="Filtrar por DNI o nombre" autocomplete="off">' +
       '<label class="sr" for="fpe">Filtrar por estado</label><select id="fpe" class="in" style="max-width:260px"><option value="">Todos los estados</option><option value="valido">REPROCANN válido</option><option value="prox">Vence en 60 días o menos</option><option value="vencido">REPROCANN vencido</option><option value="tramite">En trámite</option><option value="sin">Sin REPROCANN</option><option value="hist">Historia clínica pendiente</option></select></div>' +
-      '<div class="tw"><table><thead><tr><th>DNI</th><th>Paciente</th><th>Teléfono</th><th>REPROCANN</th><th>Historia clínica</th><th>Última dispensación</th></tr></thead><tbody id="tbPac">' + filasPacientes('', '') + '</tbody></table></div></div>';
+      '<div class="tw"><table><thead><tr><th>Documento / legajo</th><th>Paciente</th><th>Teléfono</th><th>REPROCANN</th><th>Historia clínica</th><th>Última dispensación</th></tr></thead><tbody id="tbPac">' + filasPacientes('', '') + '</tbody></table></div></div>';
   };
 
   /* ---------- ficha del paciente ---------- */
@@ -241,14 +242,14 @@
         '<div class="row"><button class="btn sm" data-act="copiar" data-v="' + esc(u) + '">' + CM.icon('copy') + 'Copiar enlace</button><button class="btn sm" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">Cambiar enlace</button></div>';
       if (u === 'https://drive.google.com/drive/my-drive') h += '<span class="hint">Enlace de ejemplo de la demo: en el sistema real cada paciente tiene su propia carpeta.</span>';
     } else {
-      h += '<div class="note warn">Sin carpeta vinculada todavía.</div><button class="btn" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">' + CM.icon('plus') + 'Vincular carpeta de Drive</button>';
+      h += '<div class="note warn">Sin carpeta vinculada todavía. Nombre único sugerido para la carpeta: <b>' + esc(p.driveCarpeta || p.leg || '') + '</b> (lleva el legajo, así nunca choca con otra).</div><button class="btn" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">' + CM.icon('plus') + 'Vincular carpeta de Drive</button>';
     }
     return h + '</div>';
   }
   VIEWS.paciente = function (r) {
     var dni = CM.soloDigitos(r.a), p = CM.paciente(dni);
     if (!p) {
-      return '<div class="card"><h1>No encontramos el DNI ' + esc(dni) + '</h1><p>No hay un paciente cargado con ese DNI.</p><div class="row"><button class="btn pri" data-act="alta-dni" data-dni="' + esc(dni) + '">' + CM.icon('plus') + 'Crear con ingreso breve</button><a class="btn" href="#/pacientes">Ver todos los pacientes</a></div></div>';
+      return '<div class="card"><h1>No encontramos esa ficha</h1><p>No hay un paciente cargado con la clave ' + esc(dni) + '. Buscalo por nombre, legajo o documento.</p><div class="row"><button class="btn pri" data-act="alta-dni" data-dni="' + esc(dni) + '">' + CM.icon('plus') + 'Crear con ingreso breve</button><a class="btn" href="#/pacientes">Ver todos los pacientes</a></div></div>';
     }
     var e = CM.estadoRep(p.reprocann), edad = CM.edad(p.nac), mes = CM.mesActual();
     var disp = CM.dispDe(dni).sort(function (a, b) { return b.ts.localeCompare(a.ts); });
@@ -258,11 +259,11 @@
     var pend = CM.seguimientoPendiente(p);
 
     var head = '<section class="card"><div class="ph"><div class="avatar" aria-hidden="true">' + esc(iniciales(p.nombre)) + '</div><div style="flex:1;min-width:220px"><h1>' + esc(p.nombre) + '</h1>' +
-      '<div class="row" style="margin-top:6px"><span class="pill p-info">DNI ' + esc(p.dni) + '</span>' + repPill(e) +
+      '<div class="row" style="margin-top:6px"><span class="pill p-info">' + esc(CM.docCorto(p)) + '</span><span class="pill p-mu">Legajo ' + esc(p.leg || '—') + '</span>' + (p.revisar ? '<span class="pill p-warn">Solicitud web: verificar datos</span>' : '') + (p.posibleDup ? '<span class="pill p-bad">Posible duplicado: revisar</span>' : '') + repPill(e) +
       (p.historiaCompleta ? '<span class="pill p-ok">Historia completa</span>' : '<span class="pill p-warn">Historia pendiente</span>') +
       (pend ? '<span class="pill p-info">Seguimiento pendiente</span>' : '') + '</div></div></div>' +
       '<div class="row" style="margin-top:16px"><button class="btn pri" data-act="dispensar" data-dni="' + esc(dni) + '">' + CM.icon('flask') + 'Registrar dispensación</button>' +
-      '<button class="btn" data-act="aporte" data-dni="' + esc(dni) + '">' + CM.icon('heart') + 'Registrar aporte voluntario</button>' +
+      '<button class="btn" data-act="aporte" data-dni="' + esc(dni) + '">' + CM.icon('heart') + 'Registrar donación voluntaria</button>' +
       '<button class="btn" data-act="seguimiento" data-dni="' + esc(dni) + '">' + CM.icon('clip') + 'Seguimiento médico</button>' +
       '<button class="btn" data-act="historia" data-dni="' + esc(dni) + '">' + CM.icon('doc') + (p.historiaCompleta ? 'Editar historia clínica' : 'Completar historia clínica') + '</button></div></section>';
 
@@ -283,8 +284,8 @@
     }).join('') + '</tbody></table></div>' : tablaVacia('Todavía no tiene dispensaciones.');
     var dsec = '<section class="card" style="margin-top:14px"><h2>Dispensaciones</h2>' + dh + '</section>';
 
-    var ah = aps.length ? '<div class="tw"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Concepto</th><th>Medio</th><th class="n">Importe</th><th>Comprobante</th></tr></thead><tbody>' + aps.map(function (a) { return filaAporte(a, true); }).join('') + '</tbody></table></div>' : tablaVacia('Sin aportes voluntarios registrados.');
-    var asec = '<section class="card" style="margin-top:14px"><h2>Aportes voluntarios y Factura C</h2>' + ah + '</section>';
+    var ah = aps.length ? '<div class="tw"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Concepto</th><th>Medio</th><th class="n">Importe</th><th>Comprobante</th></tr></thead><tbody>' + aps.map(function (a) { return filaDonacion(a, true); }).join('') + '</tbody></table></div>' : tablaVacia('Sin donaciones voluntarias registrados.');
+    var asec = '<section class="card" style="margin-top:14px"><h2>Donaciones voluntarias y Factura C</h2>' + ah + '</section>';
 
     var sh = segs.length ? '<ul class="tl">' + segs.map(function (s) {
       return '<li><b>' + CM.fmtFecha(s.fecha) + '</b> · Objetivo: ' + esc((s.objetivos || []).join(', ') || '—') + '<br><small class="hint">Mejoras: ' + esc((s.mejoras || []).join(', ') || '—') + ' · Efectos no deseados: ' + esc((s.efectos || []).join(', ') || '—') + (s.genetica ? ' · Genética: ' + esc(s.genetica) : '') + '</small>' + (s.comentario ? '<br>“' + esc(s.comentario) + '”' : '') + '</li>';
@@ -295,14 +296,14 @@
   function kv(l, v) { return '<div><small>' + esc(l) + '</small><b>' + (v ? esc(v) : '<span style="color:var(--mu)">—</span>') + '</b></div>'; }
 
   /* ---------- aportes ---------- */
-  function filaAporte(a, sinPac) {
+  function filaDonacion(a, sinPac) {
     var c = a.comp ? CM.comp(a.comp) : null;
     var cell;
     if (a.estado === 'anulado') cell = '<span class="pill p-bad">Anulado</span>';
     else if (c && c.anulado) cell = '<span class="pill p-bad">Factura C anulada</span>';
     else if (c) cell = '<button class="btn sm" data-act="ver-comp" data-id="' + esc(c.id) + '">' + CM.icon('doc') + 'Factura C ' + esc(c.pv + '-' + c.nro) + '</button>';
     else cell = '<button class="btn sm pri" data-act="emitir-fc" data-id="' + esc(a.id) + '">Emitir Factura C (simulada)</button>';
-    return '<tr' + (a.estado === 'anulado' ? ' class="anulada"' : '') + '><td>' + esc(a.id) + '</td><td>' + CM.fmtFecha(a.fecha) + '</td>' + (sinPac ? '' : '<td><a href="#/paciente/' + esc(a.dni) + '">' + esc(nombreCorto(nombreDe(a.dni))) + '</a><br><small class="hint">DNI ' + esc(a.dni) + '</small></td>') +
+    return '<tr' + (a.estado === 'anulado' ? ' class="anulada"' : '') + '><td>' + esc(a.id) + '</td><td>' + CM.fmtFecha(a.fecha) + '</td>' + (sinPac ? '' : '<td>' + (quienDe(a).pac ? '<a href="#/paciente/' + esc(a.dni) + '">' + esc(nombreCorto(quienDe(a).nom)) + '</a>' : esc(quienDe(a).nom)) + '<br><small class="hint">' + esc(quienDe(a).doc) + '</small></td>') +
       '<td>' + esc(a.concepto) + '</td><td>' + esc(CM.MEDIOS[a.medio] || a.medio) + '</td><td class="n">' + esc(CM.fmtMoney(a.cent)) + '</td><td>' + cell + '</td></tr>';
   }
   VIEWS.aportes = function () {
@@ -314,14 +315,14 @@
     var tot = arr.filter(function (a) { return a.estado === 'registrado'; }).reduce(function (s, a) { return s + a.cent; }, 0);
     var sinFc = db.aportes.filter(function (a) { return !a.comp && a.estado === 'registrado'; }).length;
     var comps = db.comps.slice().sort(function (a, b) { return b.id.localeCompare(a.id); });
-    return '<div class="page-h"><div><h1>Aportes voluntarios y Factura C</h1><p>Registro de contribuciones de los pacientes. El módulo de Factura C ante ARCA es una <b>simulación</b>: no se envía nada a ARCA ni se obtiene CAE real.</p></div><button class="btn pri" data-act="aporte" data-dni="">' + CM.icon('plus') + 'Registrar aporte</button></div>' +
+    return '<div class="page-h"><div><h1>Donaciones voluntarias y Factura C</h1><p>Registro de contribuciones de los pacientes. El módulo de Factura C ante ARCA es una <b>simulación</b>: no se envía nada a ARCA ni se obtiene CAE real.</p></div><button class="btn pri" data-act="aporte" data-dni="">' + CM.icon('plus') + 'Registrar donación</button></div>' +
       '<div class="note info" style="margin-bottom:14px">Para emitir con CAE real hace falta el certificado digital de la ONG y la conexión con los servicios de ARCA (WSAA/WSFE) <b>[VERIFICAR con el contador y en arca.gob.ar]</b>. Esa etapa no está incluida en esta demo.</div>' +
-      '<div class="grid g3"><div class="card kpi"><div class="l">Aportes del período</div><div class="v">' + esc(CM.fmtMoney(tot)) + '</div><div class="s">' + arr.length + ' registro(s) mostrados</div></div><div class="card kpi"><div class="l">Sin Factura C emitida</div><div class="v">' + sinFc + '</div><div class="s">Aportes registrados pendientes de comprobante</div></div><div class="card kpi"><div class="l">Comprobantes simulados</div><div class="v">' + comps.length + '</div><div class="s">Facturas C y notas de crédito C</div></div></div>' +
+      '<div class="grid g3"><div class="card kpi"><div class="l">Donaciones del período</div><div class="v">' + esc(CM.fmtMoney(tot)) + '</div><div class="s">' + arr.length + ' registro(s) mostrados</div></div><div class="card kpi"><div class="l">Sin Factura C emitida</div><div class="v">' + sinFc + '</div><div class="s">Donaciones registrados pendientes de comprobante</div></div><div class="card kpi"><div class="l">Comprobantes simulados</div><div class="v">' + comps.length + '</div><div class="s">Facturas C y notas de crédito C</div></div></div>' +
       '<section class="card" style="margin-top:14px"><div class="row" style="margin-bottom:12px"><label class="sr" for="apMes">Mes</label><select id="apMes" class="in" style="max-width:200px">' + opt('todos', 'Todos los meses', mes === 'todos') + ml.map(function (m) { return opt(m, m.slice(5) + '/' + m.slice(0, 4), m === mes); }).join('') + '</select>' +
       '<label class="sr" for="apFlt">Estado</label><select id="apFlt" class="in" style="max-width:260px">' + opt('', 'Todos', !flt) + opt('registrado', 'Registrados', flt === 'registrado') + opt('sinfc', 'Sin Factura C', flt === 'sinfc') + opt('anulado', 'Anulados', flt === 'anulado') + '</select></div>' +
-      (arr.length ? '<div class="tw"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Paciente</th><th>Concepto</th><th>Medio</th><th class="n">Importe</th><th>Comprobante</th></tr></thead><tbody>' + arr.map(function (a) { return filaAporte(a, false); }).join('') + '</tbody></table></div>' : tablaVacia('No hay aportes en este período.')) + '</section>' +
+      (arr.length ? '<div class="tw"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Paciente</th><th>Concepto</th><th>Medio</th><th class="n">Importe</th><th>Comprobante</th></tr></thead><tbody>' + arr.map(function (a) { return filaDonacion(a, false); }).join('') + '</tbody></table></div>' : tablaVacia('No hay donaciones en este período.')) + '</section>' +
       '<section class="card" style="margin-top:14px"><h2>Comprobantes emitidos (simulados)</h2>' + (comps.length ? '<div class="tw"><table><thead><tr><th>Tipo</th><th>Número</th><th>Fecha</th><th>Paciente</th><th class="n">Importe</th><th>Estado</th><th></th></tr></thead><tbody>' + comps.map(function (c) {
-        return '<tr><td>' + (c.tipo === 'FC' ? 'Factura C' : 'Nota de crédito C') + '</td><td>' + esc(c.pv + '-' + c.nro) + '</td><td>' + CM.fmtFecha(c.fecha) + '</td><td>' + esc(nombreCorto(nombreDe(c.dni))) + '</td><td class="n">' + esc(CM.fmtMoney(c.cent)) + '</td><td>' + (c.anulado ? '<span class="pill p-bad">Anulada</span>' : '<span class="pill p-info">Simulada</span>') + '</td><td><button class="btn sm" data-act="ver-comp" data-id="' + esc(c.id) + '">Ver / imprimir</button></td></tr>';
+        return '<tr><td>' + (c.tipo === 'FC' ? 'Factura C' : 'Nota de crédito C') + '</td><td>' + esc(c.pv + '-' + c.nro) + '</td><td>' + CM.fmtFecha(c.fecha) + '</td><td>' + esc(nombreCorto(quienDe(c).nom)) + '</td><td class="n">' + esc(CM.fmtMoney(c.cent)) + '</td><td>' + (c.anulado ? '<span class="pill p-bad">Anulada</span>' : '<span class="pill p-info">Simulada</span>') + '</td><td><button class="btn sm" data-act="ver-comp" data-id="' + esc(c.id) + '">Ver / imprimir</button></td></tr>';
       }).join('') + '</tbody></table></div>' : tablaVacia('Todavía no se emitieron comprobantes.')) + '</section>';
   };
 
@@ -360,8 +361,8 @@
       [['', 'Todos (' + Object.keys(CM.db.pacientes).length + ')'], ['valido', 'Válidos (' + cnt.valido + ')'], ['prox', 'Vencen en 60 días'], ['vencido', 'Vencidos (' + cnt.vencido + ')'], ['tramite', 'En trámite (' + cnt.tramite + ')'], ['sin', 'Sin REPROCANN (' + cnt.sin + ')']].map(function (f) {
         return '<button type="button" data-act="rep-flt" data-v="' + f[0] + '" aria-pressed="' + (repFiltro === f[0]) + '">' + esc(f[1]) + '</button>';
       }).join('') + '</div>' +
-      (pacs.length ? '<div class="tw"><table><thead><tr><th>DNI</th><th>Paciente</th><th>Estado</th><th>Vencimiento</th><th>Carnet</th><th></th></tr></thead><tbody>' + pacs.map(function (x) {
-        return '<tr><td><b>' + esc(x.p.dni) + '</b></td><td><a href="#/paciente/' + esc(x.p.dni) + '">' + esc(nombreCorto(x.p.nombre)) + '</a></td><td>' + repPill(x.e) + '</td><td>' + (x.e.vence ? CM.fmtFecha(x.e.vence) : '—') + '</td><td>' + (x.p.reprocann && x.p.reprocann.carnet ? 'Sí' : 'No') + '</td><td><button class="btn sm" data-act="rep-edit" data-dni="' + esc(x.p.dni) + '">Actualizar</button></td></tr>';
+      (pacs.length ? '<div class="tw"><table><thead><tr><th>Documento</th><th>Paciente</th><th>Estado</th><th>Vencimiento</th><th>Carnet</th><th></th></tr></thead><tbody>' + pacs.map(function (x) {
+        return '<tr><td><b>' + esc(CM.docCorto(x.p)) + '</b></td><td><a href="#/paciente/' + esc(x.p.dni) + '">' + esc(nombreCorto(x.p.nombre)) + '</a></td><td>' + repPill(x.e) + '</td><td>' + (x.e.vence ? CM.fmtFecha(x.e.vence) : '—') + '</td><td>' + (x.p.reprocann && x.p.reprocann.carnet ? 'Sí' : 'No') + '</td><td><button class="btn sm" data-act="rep-edit" data-dni="' + esc(x.p.dni) + '">Actualizar</button></td></tr>';
       }).join('') + '</tbody></table></div>' : tablaVacia('Sin pacientes con ese estado.')) + '</section>';
   };
   CM.acts['rep-flt'] = function (t) { repFiltro = t.getAttribute('data-v'); render(); };
@@ -392,8 +393,8 @@
     var gen = Object.keys(porGen).sort(function (a, b) { return porGen[b] - porGen[a]; }).map(function (k) {
       var pr = k.split('|'); return '<div class="hb"><span>' + esc(pr[0]) + '</span><span><i style="width:' + Math.max(2, Math.round(porGen[k] / gMax * 100)) + '%"></i></span><em>' + esc(CM.fmtNum(porGen[k])) + ' ' + esc(uTxt(pr[1], porGen[k]) === 'g' ? 'g' : pr[1] === 'frasco' ? 'fr.' : 'u.') + '</em></div>';
     }).join('');
-    var tabla = arr.length ? '<div class="tw"><table><thead><tr><th>Fecha</th><th>N.º</th><th>DNI</th><th>Preparado / lote</th><th class="n">Cantidad</th><th>Entregó</th><th>Estado</th></tr></thead><tbody>' + arr.map(function (d) {
-      return '<tr' + (d.anulada ? ' class="anulada"' : '') + '><td>' + CM.fmtFecha(d.fecha) + '</td><td>' + esc(d.id) + '</td><td>' + esc(d.dni) + '</td><td>' + esc(d.nombre) + '<br><small class="hint">' + esc(d.lote) + '</small></td><td class="n">' + esc(cantTxt(d.cant, d.unidad)) + '</td><td>' + esc(d.user) + '</td><td>' + (d.anulada ? 'Anulada: ' + esc(d.anulada.motivo) : 'Entregada') + '</td></tr>';
+    var tabla = arr.length ? '<div class="tw"><table><thead><tr><th>Fecha</th><th>N.º</th><th>Documento</th><th>Preparado / lote</th><th class="n">Cantidad</th><th>Entregó</th><th>Estado</th></tr></thead><tbody>' + arr.map(function (d) {
+      return '<tr' + (d.anulada ? ' class="anulada"' : '') + '><td>' + CM.fmtFecha(d.fecha) + '</td><td>' + esc(d.id) + '</td><td>' + esc(CM.docCorto(CM.paciente(d.dni)) || '') + '</td><td>' + esc(d.nombre) + '<br><small class="hint">' + esc(d.lote) + '</small></td><td class="n">' + esc(cantTxt(d.cant, d.unidad)) + '</td><td>' + esc(d.user) + '</td><td>' + (d.anulada ? 'Anulada: ' + esc(d.anulada.motivo) : 'Entregada') + '</td></tr>';
     }).join('') + '</tbody></table></div>' : '';
     return '<h2>Resumen del período</h2>' + resumen + (gen ? '<h3 style="margin-top:18px">Por genética / preparado</h3>' + gen : '') + '<h3 style="margin-top:18px">Detalle de dispensaciones (' + arr.length + ')</h3>' + tabla;
   }
@@ -445,6 +446,8 @@
       '</div><h2 style="margin-top:6px">Formularios de Google</h2><div class="f f2">' + fl('Formulario de Historia clínica / Solicitud REPROCANN', '<input class="in" name="uh" value="' + esc(o.urlHistoria) + '">') + fl('Formulario de Seguimiento médico (va en el QR de la etiqueta)', '<input class="in" name="us" value="' + esc(o.urlSeguimiento) + '">') + '</div>' +
       '<h2 style="margin-top:6px">Reglas de la dispensación</h2><label class="chk"><input type="checkbox" name="bloq"' + (c.bloquearVencido ? ' checked' : '') + '><span>Bloquear dispensaciones si el REPROCANN de la ONG o del paciente está vencido</span></label>' +
       fl('Tope mensual de flores por paciente, en gramos (opcional; el valor lo define el equipo médico)', '<input class="in num" name="tope" inputmode="decimal" placeholder="Sin tope" value="' + esc(c.topeMensualG) + '" style="max-width:260px">') +
+      '<h2 style="margin-top:6px">Factura C y documento del receptor</h2><p class="hint" style="margin:0">El documento del receptor (DNI, CUIT o CUIL) es <b>opcional</b>: sin documento se emite a consumidor final. Si ARCA exige identificar al receptor desde cierto importe, cargalo acá y el sistema lo pedirá sólo a partir de ese monto.</p>' +
+      fl('Importe desde el cual se pide documento del receptor, en pesos (opcional; vacío = nunca) [VERIFICAR monto vigente en arca.gob.ar]', '<input class="in num" name="umbral" inputmode="decimal" placeholder="Sin tope" value="' + esc(o.umbralDoc ? (o.umbralDoc / 100).toString().replace('.', ',') : '') + '" style="max-width:260px">') +
       '<p class="err" role="alert" data-err></p><div class="row"><button class="btn pri" type="submit">Guardar ajustes</button></div></form>' +
       (CM.cfgExtra ? CM.cfgExtra() : '') +
       '<section class="card" style="margin-top:14px"><h2>Sobre esta demo</h2><ul style="margin:0;padding-left:20px;color:var(--mu)"><li>Todos los pacientes y movimientos son <b>ficticios</b> y se guardan sólo en este navegador (no viajan a ningún servidor).</li><li>La Factura C es una <b>simulación</b> sin validez fiscal: no se conecta con ARCA.</li><li>Los enlaces a Drive de la demo apuntan a Google Drive en general; en el sistema real cada paciente tiene sus dos carpetas.</li><li>Normativa (Ley 27.350, vigencias del REPROCANN, exención de la ONG) <b>[VERIFICAR con asesor legal y fuentes oficiales]</b>.</li></ul>' +
@@ -471,10 +474,12 @@
     if (!pv || pv.length > 5) return fail(f, 'pv', 'El punto de emisión debe tener hasta 5 dígitos.');
     var tope = e.tope.value.trim() ? CM.parseCant(e.tope.value) : '';
     if (tope !== '' && (isNaN(tope) || tope <= 0)) return fail(f, 'tope', 'El tope tiene que ser un número mayor que cero (o dejalo vacío).');
+    var um = e.umbral.value.trim() ? CM.parseMonto(e.umbral.value) : 0;
+    if (e.umbral.value.trim() && (isNaN(um) || um <= 0)) return fail(f, 'umbral', 'El importe tiene que ser mayor que cero (o dejalo vacío).');
     var uh = e.uh.value.trim(), us = e.us.value.trim();
     if ((uh && CM.urlDrive(uh) === null) || (us && CM.urlDrive(us) === null)) return fail(f, 'uh', 'Los enlaces de formularios deben ser https de Google.');
     var o = CM.db.ong; o.nombre = e.nombre.value.trim(); o.domicilio = e.domicilio.value.trim(); o.email = e.email.value.trim(); o.instagram = e.instagram.value.trim();
-    o.cuit = cuit; o.puntoVenta = pv.padStart(4, '0'); o.condicionIva = e.iva.value.trim(); o.urlHistoria = uh || o.urlHistoria; o.urlSeguimiento = us || o.urlSeguimiento;
+    o.umbralDoc = um || 0; o.cuit = cuit; o.puntoVenta = pv.padStart(4, '0'); o.condicionIva = e.iva.value.trim(); o.urlHistoria = uh || o.urlHistoria; o.urlSeguimiento = us || o.urlSeguimiento;
     CM.db.cfg.operador = e.operador.value.trim() || 'Operador demo'; CM.db.cfg.bloquearVencido = e.bloq.checked; CM.db.cfg.topeMensualG = tope;
     CM.audit('Ajustes', 'Datos de la ONG y reglas actualizados'); CM.save(); CM.toast('Ajustes guardados.'); render();
   };
@@ -486,9 +491,9 @@
   function modalNuevoPaciente(dni) {
     CM.modal.open({
       title: 'Nuevo paciente · ingreso breve',
-      body: '<form id="fNP" data-form="alta" class="f" autocomplete="off" novalidate><p style="margin:0;color:var(--mu)">Con estos tres datos el paciente ya queda identificado por DNI. Después se completa la historia clínica.</p>' +
-        fl('Nombre y apellido *', '<input class="in" name="nombre" autocomplete="off" placeholder="Como figura en el DNI">') +
-        fl('DNI * (sin espacios ni puntos)', '<input class="in" name="dni" inputmode="numeric" maxlength="9" placeholder="Ej.: 99000007" value="' + esc(dni || '') + '">') +
+      body: '<form id="fNP" data-form="alta" class="f" autocomplete="off" novalidate><p style="margin:0;color:var(--mu)">Con el nombre y un teléfono el paciente ya queda registrado con un <b>legajo único</b>. El documento (DNI, CUIT o CUIL) es opcional. Después se completa la historia clínica.</p>' +
+        fl('Nombre y apellido *', '<input class="in" name="nombre" autocomplete="off" placeholder="Como figura en el documento">') +
+        CM.docCampos(dni ? { tipo: dni.length === 11 ? 'CUIT' : 'DNI', num: dni } : null) +
         fl('Teléfono * (sin espacios)', '<input class="in" name="tel" inputmode="tel" placeholder="Ej.: 3875000000"><span class="hint">Si es de otra provincia, con característica.</span>') +
         '<p class="err" role="alert" data-err></p></form>',
       footer: '<button class="btn" type="button" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fNP">Guardar y abrir ficha</button>',
@@ -496,16 +501,21 @@
     });
   }
   CM.forms.alta = function (f) {
-    var e = f.elements, nombre = e.nombre.value.trim().replace(/\s+/g, ' '), dni = CM.soloDigitos(e.dni.value), tel = CM.soloDigitos(e.tel.value);
+    if (f.dataset.busy) return;
+    var e = f.elements, nombre = e.nombre.value.trim().replace(/\s+/g, ' '), tel = CM.soloDigitos(e.tel.value);
     if (nombre.length < 3) return fail(f, 'nombre', 'Escribí nombre y apellido.');
-    if (dni.length < 6 || dni.length > 9) return fail(f, 'dni', 'El DNI debe tener entre 6 y 9 números, sin puntos.');
+    var vd = CM.validarDoc(e.tdoc.value, e.ndoc.value);
+    if (!vd.ok) return fail(f, 'ndoc', vd.err);
     if (tel.length < 8 || tel.length > 13) return fail(f, 'tel', 'Revisá el teléfono (entre 8 y 13 números).');
-    if (CM.paciente(dni)) {
-      CM.modal.close(); g.location.hash = '#/paciente/' + dni; CM.toast('Ese DNI ya existe: abrí la ficha existente.'); return;
+    var ex = vd.doc ? CM.resolverPac(vd.doc.num) : null;
+    if (ex && CM.docPac(ex) && CM.docPac(ex).num === vd.doc.num && !f.dataset.confirmado) {
+      f.dataset.confirmado = '1';
+      return fail(f, 'ndoc', 'Ya hay un paciente con ese documento (' + nombreCorto(ex.nombre) + '). Si es otra persona, volvé a tocar «Guardar»: se crea un legajo nuevo y queda marcado para revisar. Si es la misma, cerrá y buscala.');
     }
-    CM.db.pacientes[dni] = { dni: dni, nombre: nombre, nac: '', tel: tel, email: '', dir: '', cp: '', obraSocial: '', ocupacion: '', motivo: '', dudas: '', codSeg: '', historiaCompleta: false, consentimiento: '', reprocann: { estado: 'sin', vence: null, carnet: false }, alta: CM.hoy(), drive1: '', drive2: '' };
-    CM.audit('Alta de paciente', 'DNI ' + dni + ' · ingreso breve'); CM.save();
-    CM.modal.close(true); g.location.hash = '#/paciente/' + dni; render(); CM.toast('Paciente creado. Falta completar la historia clínica.');
+    f.dataset.busy = '1';
+    var p = CM.nuevoPaciente({ nombre: nombre, tel: tel, doc: vd.doc, origen: 'ingreso breve' });
+    CM.audit('Alta de paciente', 'Legajo ' + p.leg + ' · ingreso breve' + (p.posibleDup ? ' · posible duplicado de otro legajo' : '')); CM.save();
+    CM.modal.close(true); g.location.hash = '#/paciente/' + p.dni; render(); CM.toast('Paciente creado con el legajo ' + p.leg + '. Falta completar la historia clínica.');
   };
 
   CM.acts.historia = function (t) { modalHistoria(t.getAttribute('data-dni')); };
@@ -517,8 +527,8 @@
       body: '<form id="fHC" data-form="historia" class="f" autocomplete="off" novalidate><input type="hidden" name="dni" value="' + esc(dni) + '">' +
         '<div class="note info">Mismos datos que el formulario de Google “Historia Clínica / Solicitud Reprocann”. Los datos se usan resguardando la identidad del paciente.</div>' +
         fl('Motivo de consulta / por qué motivo utiliza cannabis *', '<textarea class="in" name="motivo">' + esc(p.motivo) + '</textarea>') +
-        '<div class="f f2">' + fl('Nombre y apellido *', '<input class="in" name="nombre" value="' + esc(p.nombre) + '">') + fl('Fecha de nacimiento *', '<input class="in" type="date" name="nac" min="1900-01-01" max="' + h + '" value="' + esc(p.nac) + '">') +
-        fl('DNI', '<input class="in" name="dnix" value="' + esc(dni) + '" readonly>') + fl('Teléfono * (sin espacios)', '<input class="in" name="tel" inputmode="tel" value="' + esc(p.tel) + '">') +
+        '<div class="f f2">' + fl('Nombre y apellido *', '<input class="in" name="nombre" value="' + esc(p.nombre) + '">') + fl('Fecha de nacimiento *', '<input class="in" type="date" name="nac" min="1900-01-01" max="' + h + '" value="' + esc(p.nac) + '">') + '</div>' + CM.docCampos(CM.docPac(p)) + '<div class="f f2">' +
+        fl('Legajo', '<input class="in" value="' + esc(p.leg || '') + '" readonly>') + fl('Teléfono * (sin espacios)', '<input class="in" name="tel" inputmode="tel" value="' + esc(p.tel) + '">') +
         fl('Correo electrónico *', '<input class="in" name="email" type="email" value="' + esc(p.email) + '">') + fl('Código postal *', '<input class="in" name="cp" value="' + esc(p.cp) + '" maxlength="8">') + '</div>' +
         fl('Dirección * (provincia, localidad, barrio, calle, N.º)', '<textarea class="in" name="dir" style="min-height:64px">' + esc(p.dir) + '</textarea>') +
         '<div class="f f2">' + fl('Obra social / N.º', '<input class="in" name="obra" value="' + esc(p.obraSocial) + '">') + fl('Código de seguimiento · paciente REPROCANN', '<input class="in" name="codSeg" value="' + esc(p.codSeg) + '">') +
@@ -540,14 +550,15 @@
     if (!e.cp.value.trim()) return fail(f, 'cp', 'Falta el código postal.');
     if (!e.dir.value.trim()) return fail(f, 'dir', 'Falta la dirección.');
     if (!e.ocupacion.value.trim()) return fail(f, 'ocupacion', 'Falta la labor u ocupación.');
+    var vd = CM.validarDoc(e.tdoc.value, e.ndoc.value); if (!vd.ok) return fail(f, 'ndoc', vd.err);
     var ed = CM.edad(nac);
     if (ed < 18 && !e.tutor.value.trim()) { $('#tutorBox').hidden = false; return fail(f, 'tutor', 'El paciente es menor de 18 años: se necesita el representante legal.'); }
     if (!e.consent.checked) return fail(f, 'consent', 'Hace falta el consentimiento informado.');
     p.nombre = nombre; p.nac = nac; p.tel = tel; p.email = email; p.cp = e.cp.value.trim(); p.dir = e.dir.value.trim(); p.motivo = e.motivo.value.trim();
     p.obraSocial = e.obra.value.trim(); p.codSeg = e.codSeg.value.trim(); p.ocupacion = e.ocupacion.value.trim(); p.dudas = e.dudas.value.trim(); p.tutor = e.tutor.value.trim();
-    if (!p.consentimiento) p.consentimiento = CM.hoy();
+    p.doc = vd.doc; if (!p.consentimiento) p.consentimiento = CM.hoy();
     var primera = !p.historiaCompleta; p.historiaCompleta = true;
-    CM.audit(primera ? 'Historia clínica completada' : 'Historia clínica editada', 'DNI ' + dni); CM.save();
+    CM.audit(primera ? 'Historia clínica completada' : 'Historia clínica editada', 'Legajo ' + CM.legDe(dni)); CM.save();
     CM.modal.close(true); render(); CM.toast('Historia clínica guardada.');
   };
   document.addEventListener('change', function (ev) {
@@ -573,7 +584,7 @@
     var u = CM.urlDrive(e.url.value);
     if (u === null) return fail(f, 'url', 'El enlace tiene que empezar con https:// y ser de Google Drive o Google Docs.');
     p['drive' + e.w.value] = u;
-    CM.audit('Enlace de Drive ' + e.w.value, 'DNI ' + p.dni + (u ? ' vinculado' : ' desvinculado')); CM.save(); CM.modal.close(true); render(); CM.toast('Enlace guardado.');
+    CM.audit('Enlace de Drive ' + e.w.value, 'Legajo ' + CM.legDe(p.dni) + (u ? ' vinculado' : ' desvinculado')); CM.save(); CM.modal.close(true); render(); CM.toast('Enlace guardado.');
   };
   CM.acts.copiar = function (t) {
     var v = t.getAttribute('data-v');
@@ -601,7 +612,7 @@
     if (est === 'valido' && !vence) return fail(f, 'vence', 'Un permiso válido necesita fecha de vencimiento.');
     if (dni) {
       var p = CM.paciente(dni); p.reprocann = { estado: est, vence: vence || null, carnet: e.carnet ? e.carnet.checked : false };
-      CM.audit('REPROCANN del paciente', 'DNI ' + dni + ' → ' + CM.REP_LABEL[est] + (vence ? ' hasta ' + CM.fmtFecha(vence) : ''));
+      CM.audit('REPROCANN del paciente', 'Legajo ' + CM.legDe(dni) + ' → ' + CM.REP_LABEL[est] + (vence ? ' hasta ' + CM.fmtFecha(vence) : ''));
     } else {
       CM.db.ong.reprocann = { estado: est, vence: vence || null, nroInscripcion: e.nro.value.trim() };
       CM.audit('REPROCANN de la ONG', CM.REP_LABEL[est] + (vence ? ' hasta ' + CM.fmtFecha(vence) : ''));
@@ -611,17 +622,20 @@
 
   /* ---------- buscar paciente dentro de un modal ---------- */
   function resolverDni(inp) {
-    var d = CM.soloDigitos(inp.value), p = CM.paciente(d), box = $(inp.id === 'dsDni' ? '#dsPac' : '#apPac');
+    var q = inp.value.trim(), ds = inp.id === 'dsDni', p = CM.resolverPac(q), box = $(ds ? '#dsPac' : '#apPac');
     if (!box) return;
-    if (!d) { box.innerHTML = ''; return; }
+    if (!q) { box.innerHTML = ''; if (!ds) donanteVisible(true); return; }
     if (!p) {
-      box.innerHTML = '<span class="hint">No existe ese DNI todavía.</span>';
-      if (inp.id === 'dsDni') { $('#dsAvisos').innerHTML = ''; var bb = $('button[form=fDS]'); if (bb) bb.disabled = false; }
+      var m = CM.buscarPacs(q);
+      if (m.length > 1) box.innerHTML = '<span class="hint">Hay ' + m.length + ' coincidencias: escribí el legajo o el documento completo. ' + m.slice(0, 4).map(function (x) { return esc(nombreCorto(x.nombre)) + ' (' + esc(x.leg || x.dni) + ')'; }).join(' · ') + '</span>';
+      else box.innerHTML = '<span class="hint">' + (ds ? 'No hay un paciente con ese dato. Registralo primero (alcanza con nombre y teléfono; el documento es opcional).' : 'Sin paciente identificado: se registra como donante / consumidor final.') + '</span>';
+      if (ds) { $('#dsAvisos').innerHTML = ''; var bb = $('button[form=fDS]'); if (bb) bb.disabled = false; } else donanteVisible(true);
       return;
     }
-    box.innerHTML = '<b>' + esc(p.nombre) + '</b> ' + repPill(CM.estadoRep(p.reprocann));
-    if (inp.id === 'dsDni') mostrarAvisos(p);
+    box.innerHTML = '<b>' + esc(p.nombre) + '</b> · ' + esc(CM.idTxt(p)) + ' ' + repPill(CM.estadoRep(p.reprocann));
+    if (ds) mostrarAvisos(p); else donanteVisible(false);
   }
+  function donanteVisible(v) { var b = $('#apDonante'); if (b) b.hidden = !v; }
   function mostrarAvisos(p) {
     var r = CM.reglasDispensar(p);
     $('#dsAvisos').innerHTML = r.msgs.map(function (m) { return '<div class="note ' + m.t + '">' + esc(m.m) + '</div>'; }).join('');
@@ -643,16 +657,16 @@
     CM.modal.open({
       title: 'Registrar dispensación', wide: true,
       body: '<form id="fDS" data-form="dispensar" class="f" autocomplete="off" novalidate>' +
-        (p ? '<input type="hidden" name="dni" value="' + esc(dni) + '"><div class="card flat"><b>' + esc(p.nombre) + '</b> · DNI ' + esc(dni) + ' ' + repPill(CM.estadoRep(p.reprocann)) + '</div>' :
-          fl('DNI del paciente *', '<input class="in" id="dsDni" name="dni" inputmode="numeric" maxlength="9" placeholder="Sin puntos"><span id="dsPac" class="hint" aria-live="polite"></span>')) +
+        (p ? '<input type="hidden" name="dni" value="' + esc(dni) + '"><div class="card flat"><b>' + esc(p.nombre) + '</b> · ' + esc(CM.idTxt(p)) + ' ' + repPill(CM.estadoRep(p.reprocann)) + '</div>' :
+          fl('Paciente * (nombre, legajo, DNI, CUIT o CUIL)', '<input class="in" id="dsDni" name="dni" autocomplete="off" placeholder="Ej.: María, L-251015-… o 99000001"><span id="dsPac" class="hint" aria-live="polite"></span>')) +
         '<div id="dsAvisos" aria-live="polite"></div>' +
         fl('Preparado y lote *', '<select class="in" id="dsLote" name="lote"><option value="">Elegí un preparado…</option>' + grupos + '</select>') +
         '<div class="f f2">' + flr('Cantidad entregada * <span id="dsUni" style="color:var(--ac)"></span>', '<input class="in num" name="cant" inputmode="decimal" placeholder="0"><span id="dsDisp" class="hint"></span>') +
         fl('Indicación / posología', '<input class="in" name="indic" placeholder="Según indicación médica">') + '</div>' +
         flr('Observación<span id="dsObsReq"></span>', '<textarea class="in" name="obs" style="min-height:64px" placeholder="Obligatoria si el REPROCANN está en trámite, sin cargar o se supera el tope"></textarea>') +
-        '<fieldset><legend>Aporte voluntario (opcional)</legend><div class="f f2">' + fl('Importe del aporte', '<input class="in num" name="aporte" inputmode="decimal" placeholder="0">') +
+        '<fieldset><legend>Donación voluntaria (opcional)</legend><div class="f f2">' + fl('Importe de la donación', '<input class="in num" name="aporte" inputmode="decimal" placeholder="0">') +
         fl('Medio', '<select class="in" name="medio">' + Object.keys(CM.MEDIOS).map(function (k) { return opt(k, CM.MEDIOS[k]); }).join('') + '</select>') + '</div>' +
-        '<label class="chk" style="margin-top:10px"><input type="checkbox" name="fc" checked><span>Emitir Factura C simulada si hay aporte</span></label></fieldset>' +
+        '<label class="chk" style="margin-top:10px"><input type="checkbox" name="fc" checked><span>Emitir Factura C simulada si hay donación</span></label></fieldset>' +
         '<p class="err" role="alert" data-err></p></form>',
       footer: '<button class="btn" type="button" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fDS">Confirmar dispensación</button>'
     });
@@ -667,8 +681,8 @@
   }
   CM.forms.dispensar = function (f) {
     if (f.dataset.busy) return;
-    var e = f.elements, dni = CM.soloDigitos(e.dni.value), p = CM.paciente(dni);
-    if (!p) return fail(f, 'dni', 'Ese DNI no existe. Creá primero al paciente.');
+    var e = f.elements, p = CM.resolverPac(e.dni.value), dni = p ? p.dni : '';
+    if (!p) return fail(f, 'dni', 'Elegí un paciente: escribí su nombre, legajo, DNI, CUIT o CUIL. Si todavía no está registrado, creá su ficha (alcanza con nombre y teléfono).');
     var l = CM.lote(e.lote.value);
     if (!l) return fail(f, 'lote', 'Elegí el preparado y el lote.');
     var cant = CM.parseCant(e.cant.value);
@@ -685,19 +699,19 @@
     }
     if (pideObs && !obs) return fail(f, 'obs', 'Falta la observación (obligatoria por el estado del REPROCANN).');
     var aporte = 0;
-    if (e.aporte.value.trim()) { aporte = CM.parseMonto(e.aporte.value); if (isNaN(aporte)) return fail(f, 'aporte', 'El aporte no es un importe válido (ej.: 15.000 o 15000,50).'); }
+    if (e.aporte.value.trim()) { aporte = CM.parseMonto(e.aporte.value); if (isNaN(aporte)) return fail(f, 'aporte', 'La donación no es un importe válido (ej.: 15.000 o 15000,50).'); }
     f.dataset.busy = '1';
     var h = CM.hoy(), id = CM.nextId('D');
     CM.db.disp.push({ id: id, fecha: h, ts: new Date().toISOString(), dni: dni, lote: l.id, prod: l.prod, nombre: l.nombre, quim: l.quim, unidad: l.unidad, cant: cant, indic: e.indic.value.trim(), obs: obs, user: CM.db.cfg.operador, aporte: '', anulada: null });
     CM.addMov(l.id, 'dispensacion', -cant, id, '');
     var ap = null, comp = null;
     if (aporte > 0) {
-      ap = { id: CM.nextId('A'), fecha: h, ts: new Date().toISOString(), dni: dni, disp: id, cent: aporte, medio: e.medio.value, concepto: 'Aporte voluntario', obs: '', user: CM.db.cfg.operador, estado: 'registrado', comp: '' };
+      ap = { id: CM.nextId('A'), fecha: h, ts: new Date().toISOString(), dni: dni, disp: id, cent: aporte, medio: e.medio.value, concepto: 'Donación voluntaria', obs: '', user: CM.db.cfg.operador, estado: 'registrado', comp: '' };
       CM.db.aportes.push(ap); CM.db.disp[CM.db.disp.length - 1].aporte = ap.id;
-      CM.audit('Aporte voluntario', ap.id + ' · DNI ' + dni + ' · ' + CM.fmtMoney(aporte));
+      CM.audit('Donación voluntaria', ap.id + ' · Legajo ' + CM.legDe(dni) + ' · ' + CM.fmtMoney(aporte));
       if (e.fc.checked) { comp = CM.emitirFacturaC(ap); CM.audit('Factura C simulada', comp.pv + '-' + comp.nro + ' · ' + ap.id); }
     }
-    CM.audit('Dispensación', id + ' · DNI ' + dni + ' · ' + l.nombre + ' · ' + cantTxt(cant, l.unidad) + (obs ? ' · obs: ' + obs : ''));
+    CM.audit('Dispensación', id + ' · Legajo ' + CM.legDe(dni) + ' · ' + l.nombre + ' · ' + cantTxt(cant, l.unidad) + (obs ? ' · obs: ' + obs : ''));
     CM.save(); CM.modal.close(true); render();
     exitoDispensacion(id, comp);
   };
@@ -751,35 +765,51 @@
   }
 
   /* ---------- aportes y Factura C ---------- */
-  CM.acts.aporte = function (t) { modalAporte(t.getAttribute('data-dni') || ''); };
-  function modalAporte(dni) {
+  CM.acts.aporte = function (t) { modalDonacion(t.getAttribute('data-dni') || ''); };
+  function modalDonacion(dni) {
     var p = dni ? CM.paciente(dni) : null;
     CM.modal.open({
-      title: 'Registrar aporte voluntario',
+      title: 'Registrar donación voluntaria',
       body: '<form id="fAP" data-form="aporte" class="f" autocomplete="off" novalidate>' +
-        (p ? '<input type="hidden" name="dni" value="' + esc(dni) + '"><div class="card flat"><b>' + esc(p.nombre) + '</b> · DNI ' + esc(dni) + '</div>' : fl('DNI del paciente *', '<input class="in" id="apDni" name="dni" inputmode="numeric" maxlength="9" placeholder="Sin puntos"><span id="apPac" class="hint" aria-live="polite"></span>')) +
+        (p ? '<input type="hidden" name="dni" value="' + esc(dni) + '"><div class="card flat"><b>' + esc(p.nombre) + '</b> · ' + esc(CM.idTxt(p)) + '</div>' : fl('Paciente (opcional: nombre, legajo, DNI, CUIT o CUIL)', '<input class="in" id="apDni" name="dni" autocomplete="off" placeholder="Dejalo vacío si no está identificado"><span id="apPac" class="hint" aria-live="polite"></span>') +
+          '<div id="apDonante" class="card flat"><b>Donante (opcional)</b><p class="hint" style="margin:4px 0 8px">Si no cargás nada, se registra como consumidor final. El documento no es obligatorio.</p>' + fl('Nombre del donante', '<input class="in" name="dnom" autocomplete="off">') + CM.docCampos(null) + '</div>') +
         '<div class="f f2">' + fl('Concepto', '<select class="in" name="concepto">' + CM.CONCEPTOS.map(function (c) { return opt(c, c); }).join('') + '</select>') +
         fl('Medio', '<select class="in" name="medio">' + Object.keys(CM.MEDIOS).map(function (k) { return opt(k, CM.MEDIOS[k]); }).join('') + '</select>') + '</div>' +
-        fl('Importe del aporte (en pesos) *', '<input class="in num" name="importe" inputmode="decimal" placeholder="0" style="font-size:20px">') +
+        fl('Importe de la donación (en pesos) *', '<input class="in num" name="importe" inputmode="decimal" placeholder="0" style="font-size:20px">') +
         fl('Observación', '<input class="in" name="obs" placeholder="Opcional">') +
         '<label class="chk"><input type="checkbox" name="fc" checked><span>Emitir Factura C simulada ahora</span></label><p class="err" role="alert" data-err></p></form>',
-      footer: '<button class="btn" type="button" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fAP">Registrar aporte</button>'
+      footer: '<button class="btn" type="button" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fAP">Registrar donación</button>'
     });
   }
   CM.forms.aporte = function (f) {
     if (f.dataset.busy) return;
-    var e = f.elements, dni = CM.soloDigitos(e.dni.value), p = CM.paciente(dni);
-    if (!p) return fail(f, 'dni', 'Ese DNI no existe. Creá primero al paciente.');
+    var e = f.elements, q = e.dni.value.trim(), p = q ? CM.resolverPac(q) : null;
+    if (q && !p) {
+      var m = CM.buscarPacs(q);
+      if (m.length > 1) return fail(f, 'dni', 'Hay varios pacientes con ese dato: escribí el legajo o el documento completo.');
+      /* texto sin coincidencia: si no hay paciente se toma como donante sin identificar (no se bloquea) */
+    }
     var cent = CM.parseMonto(e.importe.value);
     if (isNaN(cent) || cent <= 0) return fail(f, 'importe', 'Escribí un importe mayor que cero (ej.: 15.000 o 15000,50).');
+    var rec = null;
+    if (!p) {
+      var vd = CM.validarDoc(e.tdoc ? e.tdoc.value : '', e.ndoc ? e.ndoc.value : '');
+      if (!vd.ok) return fail(f, 'ndoc', vd.err);
+      rec = { nombre: e.dnom ? e.dnom.value.trim().replace(/\s+/g, ' ') : '', doc: vd.doc };
+      var um = CM.umbralDoc();
+      if (e.fc.checked && um && cent >= um && !rec.doc) return fail(f, 'ndoc', 'Para este importe se pide identificar al receptor de la Factura C (documento, CUIT o CUIL). El tope lo define la ONG en Ajustes [VERIFICAR en arca.gob.ar]. También podés registrar la donación sin Factura C.');
+    }
     f.dataset.busy = '1';
-    var a = { id: CM.nextId('A'), fecha: CM.hoy(), ts: new Date().toISOString(), dni: dni, disp: '', cent: cent, medio: e.medio.value, concepto: e.concepto.value, obs: e.obs.value.trim(), user: CM.db.cfg.operador, estado: 'registrado', comp: '' };
-    CM.db.aportes.push(a); CM.audit('Aporte voluntario', a.id + ' · DNI ' + dni + ' · ' + CM.fmtMoney(cent) + ' · ' + a.concepto);
+    var dni = p ? p.dni : '';
+    var a = { id: CM.nextId('A'), fecha: CM.hoy(), ts: new Date().toISOString(), dni: dni, rec: rec, disp: '', cent: cent, medio: e.medio.value, concepto: e.concepto.value, obs: e.obs.value.trim(), user: CM.db.cfg.operador, estado: 'registrado', comp: '' };
+    CM.db.aportes.push(a); CM.audit('Donación voluntaria', a.id + ' · ' + (p ? 'Legajo ' + CM.legDe(dni) : 'donante ' + (rec.doc ? CM.fmtDoc(rec.doc) : 'sin documento')) + ' · ' + CM.fmtMoney(cent) + ' · ' + a.concepto);
     var c = null;
     if (e.fc.checked) { c = CM.emitirFacturaC(a); CM.audit('Factura C simulada', c.pv + '-' + c.nro + ' · ' + a.id); }
     CM.save(); CM.modal.close(true); render();
-    if (c) verComprobante(c.id); else CM.toast('Aporte registrado.');
+    if (c) verComprobante(c.id); else CM.toast('Donación registrada.');
   };
+  /* Monto (en centavos) desde el cual la ONG exige identificar al receptor; vacío = nunca se exige. */
+  CM.umbralDoc = function () { var v = CM.db.ong && CM.db.ong.umbralDoc; return v > 0 ? v : 0; };
   CM.acts['emitir-fc'] = function (t) {
     var a = CM.db.aportes.filter(function (x) { return x.id === t.getAttribute('data-id'); })[0];
     if (!a || a.comp || a.estado !== 'registrado') return;
@@ -787,15 +817,15 @@
   };
   CM.acts['ver-comp'] = function (t) { verComprobante(t.getAttribute('data-id')); };
   function docComp(c) {
-    var o = CM.db.ong, p = CM.paciente(c.dni), nc = c.tipo === 'NCC';
+    var o = CM.db.ong, q = quienDe(c), nc = c.tipo === 'NCC', dc = c.rec && c.rec.doc ? c.rec.doc : (q.pac ? CM.docPac(q.pac) : null);
     return '<div class="doc"><div class="demo">DOCUMENTO DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL · NO ENVIADO A ARCA</div>' +
       '<div class="hd"><div><h1 style="font-size:17px">' + esc(o.nombre) + '</h1><div>' + esc(o.domicilio) + '</div><div>Condición frente al IVA: ' + esc(o.condicionIva) + '</div></div>' +
       '<div class="letra">C<small>COD. ' + (nc ? '013' : '011') + '</small></div>' +
       '<div><h1>' + (nc ? 'NOTA DE CRÉDITO' : 'FACTURA') + '</h1><div>Punto de emisión: <b>' + esc(c.pv) + '</b> · N.º: <b>' + esc(c.nro) + '</b></div><div>Fecha de emisión: <b>' + CM.fmtFecha(c.fecha) + '</b></div><div>CUIT: ' + (o.cuit ? esc(o.cuit) : '<i>[a completar en Ajustes]</i>') + '</div></div></div>' +
-      '<div style="border:1px solid #111;border-top:0;padding:10px 12px"><b>Receptor:</b> ' + esc(p ? nombreCorto(p.nombre) : '') + ' · DNI ' + esc(c.dni) + ' · Condición frente al IVA: Consumidor final</div>' +
+      '<div style="border:1px solid #111;border-top:0;padding:10px 12px"><b>Receptor:</b> ' + esc(nombreCorto(q.nom)) + ' · ' + (dc ? esc(CM.fmtDoc(dc)) : 'Sin documento') + ' · Condición frente al IVA: ' + (dc && dc.tipo === 'CUIT' ? 'a confirmar con el receptor [VERIFICAR]' : 'Consumidor final') + '</div>' +
       '<table style="margin-top:12px"><thead><tr><th>Concepto</th><th style="width:130px;text-align:right">Importe</th></tr></thead><tbody><tr><td>' + esc(c.concepto) + '</td><td style="text-align:right">' + esc(CM.fmtMoney(c.cent)) + '</td></tr></tbody></table>' +
       '<div class="tot">Importe total: ' + esc(CM.fmtMoney(c.cent)) + '</div>' +
-      '<div class="ft">CAE simulado N.º ' + esc(c.cae) + ' · Vto.: ' + CM.fmtFecha(c.caeVto) + '<br>Comprobante generado por la demo del Sistema ONG. Para emitir con CAE real se requiere el certificado digital de la ONG y la conexión con los servicios de ARCA [VERIFICAR].<br>Aporte voluntario registrado por ' + esc(CM.db.cfg.operador) + '.</div></div>';
+      '<div class="ft">CAE simulado N.º ' + esc(c.cae) + ' · Vto.: ' + CM.fmtFecha(c.caeVto) + '<br>Comprobante generado por la demo del Sistema ONG. Para emitir con CAE real se requiere el certificado digital de la ONG y la conexión con los servicios de ARCA [VERIFICAR].<br>Donación voluntaria registrado por ' + esc(CM.db.cfg.operador) + '.</div></div>';
   }
   function verComprobante(id) {
     var c = CM.comp(id); if (!c) return;
@@ -864,7 +894,7 @@
     var o = { id: CM.nextId('S'), dni: dni, fecha: CM.hoy(), objetivos: vals('objetivos'), otro: e.otro.value.trim(), vias: vals('vias'), productos: vals('productos'), genetica: e.genetica.value, quim: vals('quim'), mejoras: vals('mejoras'), efectos: vals('efectos'), dejo: e.dejo.value, nueva: e.nueva.value, tipoAct: e.tipoAct.value.trim(), habitos: vals('habitos'), comentario: e.comentario.value.trim() };
     if (!o.objetivos.length && !o.otro) return fail(f, '', 'Elegí al menos un síntoma u objetivo terapéutico (o completá “Otro”).');
     if (o.otro) o.objetivos.push('Otro: ' + o.otro);
-    CM.db.seg.push(o); CM.audit('Seguimiento médico', 'DNI ' + dni); CM.save(); CM.modal.close(true); render(); CM.toast('Seguimiento guardado.');
+    CM.db.seg.push(o); CM.audit('Seguimiento médico', 'Legajo ' + CM.legDe(dni)); CM.save(); CM.modal.close(true); render(); CM.toast('Seguimiento guardado.');
   };
 
   /* ---------- lotes y stock ---------- */

@@ -98,13 +98,13 @@
     L.push(ctr(sinTilde('Fundacion Cannabismatica I+D'), c), ctr(o.domicilio.slice(0, c), c), rule);
     if (doc === 'aporte') {
       var a = db.aportes.slice().sort(function (x, y) { return y.ts.localeCompare(x.ts); })[0];
-      if (!a) return 'Sin aportes para imprimir.';
-      L.push(ctr('COMPROBANTE DE APORTE VOLUNTARIO', c).slice(0, c), ctr('NO VALIDO COMO FACTURA', c), rule, 'N.: ' + a.id, 'Fecha: ' + CM.fmtFecha(a.fecha), 'Paciente DNI: ' + a.dni, 'Concepto: ' + sinTilde(a.concepto), 'Medio: ' + sinTilde(CM.MEDIOS[a.medio] || a.medio), rule, lr('APORTE', money(a.cent), c), rule);
-      L.push.apply(L, wrap('Aporte voluntario, no es pago de un servicio. Documento interno de demostracion.', c));
+      if (!a) return 'Sin donaciones para imprimir.';
+      L.push(ctr('COMPROBANTE DE DONACION VOLUNTARIA', c).slice(0, c), ctr('NO VALIDO COMO FACTURA', c), rule, 'N.: ' + a.id, 'Fecha: ' + CM.fmtFecha(a.fecha), 'Donante: ' + sinTilde(CM.quienDe(a).nom).slice(0, 24), 'Documento: ' + CM.quienDe(a).doc, 'Concepto: ' + sinTilde(a.concepto), 'Medio: ' + sinTilde(CM.MEDIOS[a.medio] || a.medio), rule, lr('DONACION', money(a.cent), c), rule);
+      L.push.apply(L, wrap('Donación voluntaria, no es pago de un servicio. Documento interno de demostracion.', c));
     } else if (doc === 'disp') {
       var d = db.disp.filter(function (x) { return !x.anulada; }).sort(function (x, y) { return y.ts.localeCompare(x.ts); })[0];
       if (!d) return 'Sin dispensaciones para imprimir.';
-      L.push(ctr('ENTREGA DE PREPARADO', c), rule, 'N.: ' + d.id, 'Fecha: ' + CM.fmtFecha(d.fecha), 'Paciente DNI: ' + d.dni, 'Lote: ' + d.lote, sinTilde(d.nombre).slice(0, c), lr('Cantidad', CM.fmtNum(d.cant) + ' ' + d.unidad, c), rule);
+      L.push(ctr('ENTREGA DE PREPARADO', c), rule, 'N.: ' + d.id, 'Fecha: ' + CM.fmtFecha(d.fecha), 'Legajo: ' + CM.legDe(d.dni), 'Lote: ' + d.lote, sinTilde(d.nombre).slice(0, c), lr('Cantidad', CM.fmtNum(d.cant) + ' ' + d.unidad, c), rule);
       L.push.apply(L, wrap('Uso bajo indicacion medica. Conserve el producto fuera del alcance de menores.', c));
     } else if (doc === 'cierre') {
       var cj = db.cajas.filter(function (x) { return x.cierre; }).pop();
@@ -121,7 +121,7 @@
     var f = CM.per2, w = +f.ancho;
     return pageH('Periféricos y ticket', 'Dispositivos conectables y vista previa del ticket. <b>Ningún dispositivo físico fue probado todavía</b>: figuran como «pendiente de prueba física».') +
       '<section class="card"><h2>Qué permite este navegador</h2><div class="kv">' + caps().map(function (c) { return '<div><small>' + esc(c[0]) + '</small><b>' + (c[1] ? 'Disponible' : 'No disponible aquí') + '</b></div>'; }).join('') + '</div><p class="hint">Disponible no significa probado: falta hacerlo con cada modelo real. Los datos que vuelven de un dispositivo se validan antes de usarse.</p></section>' +
-      '<div class="grid g2" style="margin-top:14px"><section class="card"><h2>Ticket</h2><div class="f f2">' + fl('Documento', '<select id="pfDoc" class="in">' + opt('prueba', 'Ticket de prueba', f.doc === 'prueba') + opt('aporte', 'Último aporte voluntario', f.doc === 'aporte') + opt('disp', 'Última entrega de preparado', f.doc === 'disp') + opt('cierre', 'Último cierre de caja', f.doc === 'cierre') + '</select>') + fl('Ancho de papel', '<select id="pfAn" class="in">' + opt('58', '58 mm', f.ancho === '58') + opt('80', '80 mm', f.ancho === '80') + '</select>') + '</div>' +
+      '<div class="grid g2" style="margin-top:14px"><section class="card"><h2>Ticket</h2><div class="f f2">' + fl('Documento', '<select id="pfDoc" class="in">' + opt('prueba', 'Ticket de prueba', f.doc === 'prueba') + opt('aporte', 'Última donación voluntaria', f.doc === 'aporte') + opt('disp', 'Última entrega de preparado', f.doc === 'disp') + opt('cierre', 'Último cierre de caja', f.doc === 'cierre') + '</select>') + fl('Ancho de papel', '<select id="pfAn" class="in">' + opt('58', '58 mm', f.ancho === '58') + opt('80', '80 mm', f.ancho === '80') + '</select>') + '</div>' +
       '<div class="tkwrap"><pre class="tk tk' + f.ancho + '" aria-label="Vista previa del ticket">' + esc(ticketTexto(f.doc, w)) + '</pre></div><div class="row" style="margin-top:12px"><button class="btn pri" data-act="tk-print">' + CM.icon('print') + 'Imprimir ticket</button></div><p class="hint">Imprime con el diálogo del navegador (impresora del sistema). La impresión directa ESC/POS, el corte y la apertura de cajón requieren la impresora real o un agente local: <b>pendiente de prueba física</b>.</p></section>' +
       '<section class="card"><h2>Facturación (ARCA)</h2><div class="kv"><div><small>Factura C</small><b>Simulador sin validez fiscal</b></div><div><small>Pedido automático de CAE</small><b>Pendiente de configuración</b></div></div><div class="note warn" style="margin-top:12px">Para emitir con CAE real hacen falta el certificado digital de la ONG y los servicios WSAA/WSFE de ARCA, probados en homologación <b>[VERIFICAR en arca.gob.ar y con el contador]</b>. Hoy los comprobantes de la demo dicen «sin validez fiscal».</div></section></div>' +
       '<section class="card" style="margin-top:14px"><h2>Tipos de dispositivo</h2><div class="tw"><table><thead><tr><th>Tipo</th><th>Conexión posible</th><th>Estado</th></tr></thead><tbody>' + HAL.map(function (h) { return '<tr><td><b>' + esc(h[1]) + '</b><br><small class="hint">' + esc(h[0]) + '</small></td><td>' + esc(h[2]) + '</td><td>' + estPill('fis') + '</td></tr>'; }).join('') + '</tbody></table></div></section>';
@@ -135,17 +135,17 @@
      IMPORTAR / EXPORTAR
      =================================================================== */
   var EXPORTS = [
-    ['pacientes', 'Pacientes', true], ['disp', 'Dispensaciones', false], ['aportes', 'Aportes voluntarios', false], ['comps', 'Comprobantes simulados', false], ['lotes', 'Lotes y stock', false], ['movs', 'Movimientos de stock', false],
+    ['pacientes', 'Pacientes', true], ['disp', 'Dispensaciones', false], ['aportes', 'Donaciones voluntarias', false], ['comps', 'Comprobantes simulados', false], ['lotes', 'Lotes y stock', false], ['movs', 'Movimientos de stock', false],
     ['cajas', 'Cajas cerradas', false], ['menuitems', 'Talleres y servicios del menú', false], ['personal', 'Personal', true], ['fichas', 'Fichadas', false], ['sellos', 'Sellos', false], ['memb', 'Membresías', false], ['insumos', 'Insumos', false]
   ];
   function m2(v) { return (v / 100).toFixed(2).replace('.', ','); }
   function datosExport(k) {
     var db = CM.db;
     switch (k) {
-      case 'pacientes': return [['DNI', 'Nombre', 'Telefono', 'Email', 'Nacimiento', 'Domicilio', 'REPROCANN', 'Vence', 'Historia completa', 'Consentimiento'], Object.keys(db.pacientes).map(function (d) { var p = db.pacientes[d], r = CM.estadoRep(p.reprocann); return [p.dni, p.nombre, p.tel, p.email, p.nac, p.dir, CM.REP_LABEL[r.k], p.reprocann.vence || '', p.historiaCompleta ? 'Si' : 'No', p.consentimiento || '']; })];
-      case 'disp': return [['Id', 'Fecha', 'DNI', 'Lote', 'Preparado', 'Cantidad', 'Unidad', 'Anulada'], db.disp.map(function (d) { return [d.id, d.fecha, d.dni, d.lote, d.nombre, d.cant, d.unidad, d.anulada ? 'Si' : 'No']; })];
-      case 'aportes': return [['Id', 'Fecha', 'DNI', 'Concepto', 'Medio', 'Importe', 'Estado', 'Factura C'], db.aportes.map(function (a) { var c = a.comp ? CM.comp(a.comp) : null; return [a.id, a.fecha, a.dni, a.concepto, CM.MEDIOS[a.medio] || a.medio, m2(a.cent), a.estado, c ? c.pv + '-' + c.nro : '']; })];
-      case 'comps': return [['Tipo', 'Numero', 'Fecha', 'DNI', 'Importe', 'Anulado', 'Simulado'], db.comps.map(function (c) { return [c.tipo, c.pv + '-' + c.nro, c.fecha, c.dni, m2(c.cent), c.anulado ? 'Si' : 'No', 'Si (sin validez fiscal)']; })];
+      case 'pacientes': return [['Legajo', 'Documento', 'Nombre', 'Telefono', 'Email', 'Nacimiento', 'Domicilio', 'REPROCANN', 'Vence', 'Historia completa', 'Consentimiento'], Object.keys(db.pacientes).map(function (d) { var p = db.pacientes[d], r = CM.estadoRep(p.reprocann); return [p.leg || '', CM.fmtDoc(CM.docPac(p)), p.nombre, p.tel, p.email, p.nac, p.dir, CM.REP_LABEL[r.k], p.reprocann.vence || '', p.historiaCompleta ? 'Si' : 'No', p.consentimiento || '']; })];
+      case 'disp': return [['Id', 'Fecha', 'Legajo', 'Lote', 'Preparado', 'Cantidad', 'Unidad', 'Anulada'], db.disp.map(function (d) { return [d.id, d.fecha, CM.legDe(d.dni), d.lote, d.nombre, d.cant, d.unidad, d.anulada ? 'Si' : 'No']; })];
+      case 'aportes': return [['Id', 'Fecha', 'Legajo', 'Documento', 'Donante', 'Concepto', 'Medio', 'Importe', 'Estado', 'Factura C'], db.aportes.map(function (a) { var c = a.comp ? CM.comp(a.comp) : null; var q = CM.quienDe(a); return [a.id, a.fecha, q.pac ? CM.legDe(a.dni) : '', q.doc, q.nom, a.concepto, CM.MEDIOS[a.medio] || a.medio, m2(a.cent), a.estado, c ? c.pv + '-' + c.nro : '']; })];
+      case 'comps': return [['Tipo', 'Numero', 'Fecha', 'Documento receptor', 'Importe', 'Anulado', 'Simulado'], db.comps.map(function (c) { return [c.tipo, c.pv + '-' + c.nro, c.fecha, CM.quienDe(c).doc, m2(c.cent), c.anulado ? 'Si' : 'No', 'Si (sin validez fiscal)']; })];
       case 'lotes': return [['Lote', 'Preparado', 'Tipo', 'Quimiotipo', 'Unidad', 'Stock', 'Minimo'], db.lotes.map(function (l) { return [l.id, l.nombre, CM.PRODUCTOS[l.prod].n, l.quim, l.unidad, CM.stockLote(l.id), l.min]; })];
       case 'movs': return [['Id', 'Fecha', 'Lote', 'Tipo', 'Cantidad', 'Referencia', 'Motivo'], db.movs.map(function (m) { return [m.id, m.fecha, m.lote, m.tipo, m.cant, m.ref, m.motivo]; })];
       case 'cajas': return [['Caja', 'Fecha', 'Cerro', 'Ingresos', 'Egresos', 'Esperado', 'Declarado', 'Diferencia', 'Sello'], db.cajas.filter(function (c) { return c.cierre; }).map(function (c) { var x = c.cierre; return [c.id, x.fecha, x.user, m2(x.ingresos), m2(x.egresos), m2(x.esperadoEf), m2(x.declaradoEf), m2(x.dif), x.hash]; })];
@@ -153,7 +153,7 @@
       case 'fichas': return [['Persona', 'Fecha', 'Tipo', 'Fecha y hora', 'Metodo'], db.fichas.map(function (x) { return [x.emp, x.fecha, x.tipo, x.ts, x.metodo]; })];
       case 'sellos': return [['Id', 'Fecha', 'DNI', 'Tipo', 'Cantidad', 'Motivo'], db.sellos.map(function (s) { return [s.id, s.fecha, s.dni, s.tipo, s.cant, s.motivo]; })];
       case 'memb': return [['Id', 'DNI', 'Plan', 'Desde', 'Pagada hasta', 'Estado'], db.membresias.map(function (m) { return [m.id, m.dni, m.plan, m.desde, m.pagadoHasta, CM.estadoMemb(m)]; })];
-      case 'menuitems': return [['Nombre', 'Rubro', 'Descripcion', 'Aporte sugerido', 'Name', 'Description', 'Duracion', 'Incluye'], db.menu.draft.items.map(function (i) { return [i.es.n, i.cat, i.es.d, m2(i.cent), i.en ? i.en.n : '', i.en ? i.en.d : '', i.dur ? i.dur.es : '', i.inc ? i.inc.es.split('\n').join('; ') : '']; })];
+      case 'menuitems': return [['Nombre', 'Rubro', 'Descripcion', 'Donación sugerida', 'Name', 'Description', 'Duracion', 'Incluye'], db.menu.draft.items.map(function (i) { return [i.es.n, i.cat, i.es.d, m2(i.cent), i.en ? i.en.n : '', i.en ? i.en.d : '', i.dur ? i.dur.es : '', i.inc ? i.inc.es.split('\n').join('; ') : '']; })];
       default: return [['Id', 'Insumo', 'Unidad', 'Minimo'], db.insumos.map(function (i) { return [i.id, i.n, i.unidad, i.min]; })];
     }
   }
@@ -167,7 +167,7 @@
   CM.acts['exp-ok'] = function (t) {
     var k = t.getAttribute('data-v'), d = datosExport(k); CM.audit('Exportación', k + ' · ' + d[1].length + ' filas · datos personales'); CM.save(); CM.modal.close(true); CM.descargar(k + '_' + CM.hoy() + '.csv', CM.csv(d[0], d[1]));
   };
-  var CAMPOS_PAC = [['dni', 'DNI', true, ['dni', 'documento', 'nro documento', 'numero de documento']], ['nombre', 'Nombre y apellido', true, ['nombre', 'nombre y apellido', 'apellido y nombre', 'paciente', 'socio']], ['tel', 'Teléfono', false, ['telefono', 'tel', 'celular', 'whatsapp', 'movil']], ['email', 'Correo', false, ['email', 'correo', 'mail', 'e-mail']], ['nac', 'Nacimiento', false, ['nacimiento', 'fecha de nacimiento', 'fecha nac', 'nac']], ['dir', 'Domicilio', false, ['domicilio', 'direccion']], ['cons', 'Consentimiento (Sí/No)', false, ['consentimiento', 'acepta', 'consiente']]];
+  var CAMPOS_PAC = [['dni', 'Documento (DNI, CUIT o CUIL; opcional)', false, ['dni', 'documento', 'cuit', 'cuil', 'nro documento', 'numero de documento']], ['nombre', 'Nombre y apellido', true, ['nombre', 'nombre y apellido', 'apellido y nombre', 'paciente', 'socio']], ['tel', 'Teléfono', false, ['telefono', 'tel', 'celular', 'whatsapp', 'movil']], ['email', 'Correo', false, ['email', 'correo', 'mail', 'e-mail']], ['nac', 'Nacimiento', false, ['nacimiento', 'fecha de nacimiento', 'fecha nac', 'nac']], ['dir', 'Domicilio', false, ['domicilio', 'direccion']], ['cons', 'Consentimiento (Sí/No)', false, ['consentimiento', 'acepta', 'consiente']]];
   function fechaISO(s) {
     s = String(s || '').trim(); if (!s) return '';
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) || null, y, mo, d;
@@ -184,26 +184,41 @@
     var c = d.cats.filter(function (x) { return CM.norm(x.id) === n || CM.norm(x.es) === n || CM.norm(x.en) === n; })[0]; return c ? c.id : null;
   }
   function proxId(pref, arr) { var mx = 0; arr.forEach(function (x) { var m = new RegExp('^' + pref + '(\\d+)$').exec(x.id); if (m) mx = Math.max(mx, +m[1]); }); return pref + (mx + 1); }
+  /* clave real de un paciente a partir de la clave de importación: documento o «sin documento» (nombre + teléfono + nacimiento) */
+  function clavePac(id) {
+    var db = CM.db.pacientes, k = Object.keys(db), i;
+    if (db[id] && !/^sd\|/.test(id)) return id;
+    if (/^sd\|/.test(id)) {
+      for (i = 0; i < k.length; i++) { var p = db[k[i]], t = CM.soloDigitos(p.tel).slice(-10); if (!CM.docPac(p) && 'sd|' + CM.norm(p.nombre) + '|' + t + '|' + (p.nac || '') === id) return k[i]; }
+      return null;
+    }
+    for (i = 0; i < k.length; i++) { var dc = CM.docPac(db[k[i]]); if (dc && dc.num === id) return k[i]; }
+    return null;
+  }
   /* cada entidad define sus columnas, validación, alta/actualización y reversión */
   var ENT = {
     pacientes: {
       label: 'Pacientes', unidad: 'paciente(s)', perm: 'importexport', personal: true,
-      campos: CAMPOS_PAC, plantilla: [['DNI', 'Nombre y apellido', 'Telefono', 'Email', 'Fecha de nacimiento', 'Domicilio', 'Consentimiento'], [['99000100', 'Ejemplo Uno', '3875000100', 'ejemplo1@example.com', '15/03/1980', 'Salta, Capital', 'Si']]],
+      campos: CAMPOS_PAC, plantilla: [['Documento (opcional)', 'Nombre y apellido', 'Telefono', 'Email', 'Fecha de nacimiento', 'Domicilio', 'Consentimiento'], [['99000100', 'Ejemplo Uno', '3875000100', 'ejemplo1@example.com', '15/03/1980', 'Salta, Capital', 'Si']]],
       parse: function (g1) {
-        var er = [], dni = CM.soloDigitos(g1('dni')), nom = g1('nombre').replace(/\s+/g, ' '), tel = CM.soloDigitos(g1('tel')), nac = fechaISO(g1('nac')), em = g1('email');
-        if (dni.length < 6 || dni.length > 9) er.push('DNI inválido'); if (nom.length < 3) er.push('Falta el nombre');
+        var er = [], vd = CM.validarDoc('', g1('dni')), nom = g1('nombre').replace(/\s+/g, ' '), tel = CM.soloDigitos(g1('tel')), nac = fechaISO(g1('nac')), em = g1('email');
+        if (!vd.ok || (g1('dni') && !CM.soloDigitos(g1('dni')))) er.push('Documento inválido (dejalo vacío si no lo tiene)'); if (nom.length < 3) er.push('Falta el nombre');
+        var dni = vd.doc ? vd.doc.num : 'sd|' + CM.norm(nom) + '|' + tel.slice(-10) + '|' + (nac || '');
         if (g1('tel') && (tel.length < 8 || tel.length > 13)) er.push('Teléfono inválido');
         if (g1('nac') && nac === null) er.push('Fecha de nacimiento inválida');
         if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) er.push('Correo inválido');
-        return { er: er, id: dni, o: { dni: dni, nombre: nom, tel: tel, email: em, nac: nac || '', dir: g1('dir'), cons: /^(si|sí|s|1|true|yes|x)$/i.test(g1('cons')) } };
+        return { er: er, id: dni, o: { dni: dni, doc: vd.doc, nombre: nom, tel: tel, email: em, nac: nac || '', dir: g1('dir'), cons: /^(si|sí|s|1|true|yes|x)$/i.test(g1('cons')) } };
       },
-      existe: function (id) { return !!CM.paciente(id); },
-      snap: function (id) { return JSON.parse(JSON.stringify(CM.paciente(id))); },
-      crear: function (o) { CM.db.pacientes[o.dni] = { dni: o.dni, nombre: o.nombre, nac: o.nac, tel: o.tel, email: o.email, dir: o.dir, cp: '', obraSocial: '', ocupacion: '', motivo: '', dudas: '', codSeg: '', historiaCompleta: false, consentimiento: '', consImport: o.cons ? 'Sí (según archivo)' : 'No', reprocann: { estado: 'sin', vence: null, carnet: false }, alta: CM.hoy(), drive1: '', drive2: '', importada: true }; return o.dni; },
-      actualizar: function (id, o) { var p = CM.paciente(id); if (o.nombre) p.nombre = o.nombre; if (o.tel) p.tel = o.tel; if (o.email) p.email = o.email; if (o.nac) p.nac = o.nac; if (o.dir) p.dir = o.dir; },
-      restaurar: function (id, prev) { CM.db.pacientes[id] = prev; },
+      existe: function (id) { return !!clavePac(id); },
+      snap: function (id) { return JSON.parse(JSON.stringify(CM.paciente(clavePac(id)))); },
+      crear: function (o) {
+        var p = CM.nuevoPaciente({ nombre: o.nombre, tel: o.tel, doc: o.doc, nac: o.nac, email: o.email, dir: o.dir, origen: 'importación' });
+        p.consImport = o.cons ? 'Sí (según archivo)' : 'No'; p.importada = true; return p.dni;
+      },
+      actualizar: function (id, o) { var p = CM.paciente(clavePac(id)); if (o.nombre) p.nombre = o.nombre; if (o.tel) p.tel = o.tel; if (o.email) p.email = o.email; if (o.nac) p.nac = o.nac; if (o.dir) p.dir = o.dir; if (o.doc && !CM.docPac(p)) p.doc = o.doc; },
+      restaurar: function (id, prev) { CM.db.pacientes[prev.dni] = prev; },
       quitar: function (id) { delete CM.db.pacientes[id]; },
-      bloqueo: function (id) { return CM.dispDe(id).length || CM.aportesDe(id).length ? 'ya hay dispensaciones o aportes de pacientes de este lote' : ''; },
+      bloqueo: function (id) { return CM.dispDe(id).length || CM.aportesDe(id).length ? 'ya hay dispensaciones o donaciones de pacientes de este lote' : ''; },
       aviso: function (a) { return 'Quienes no traen consentimiento quedan con consentimiento «No» (la opción más restrictiva: no reciben mensajes). Cantidad en esa situación: <b>' + a.nuevos.concat(a.act).filter(function (x) { return !x.cons; }).length + '</b> (Ley 25.326 <b>[VERIFICAR]</b>). Los pacientes importados quedan con la historia clínica pendiente.'; }
     },
     personal: {
@@ -250,11 +265,11 @@
     },
     menu: {
       label: 'Talleres, cursos y servicios del menú público', unidad: 'ítem(s) del menú', perm: 'menu',
-      campos: [['nombre', 'Nombre', true, ['nombre', 'titulo', 'actividad', 'servicio', 'taller', 'curso']], ['cat', 'Rubro del menú', false, ['rubro', 'categoria', 'tipo']], ['desc', 'Descripción', false, ['descripcion', 'detalle', 'texto']], ['aporte', 'Aporte sugerido ($)', false, ['aporte', 'aporte sugerido', 'importe', 'monto', 'contribucion']], ['nombreEn', 'Nombre (inglés)', false, ['name', 'nombre en', 'nombre ingles', 'english']], ['descEn', 'Descripción (inglés)', false, ['description', 'descripcion en', 'descripcion ingles']], ['dur', 'Duración', false, ['duracion']], ['inc', 'Qué incluye (separar con ;)', false, ['incluye', 'que incluye']]],
-      plantilla: [['Nombre', 'Rubro', 'Descripcion', 'Aporte sugerido', 'Name', 'Description', 'Duracion', 'Incluye'], [['Taller de ejemplo', 'Talleres', 'Descripción del taller', '5000', 'Example workshop', 'Workshop description', '2 horas', 'Material; Certificado']]],
+      campos: [['nombre', 'Nombre', true, ['nombre', 'titulo', 'actividad', 'servicio', 'taller', 'curso']], ['cat', 'Rubro del menú', false, ['rubro', 'categoria', 'tipo']], ['desc', 'Descripción', false, ['descripcion', 'detalle', 'texto']], ['aporte', 'Donación sugerida ($)', false, ['aporte', 'donacion', 'aporte sugerido', 'donación sugerida', 'donacion sugerida', 'importe', 'monto', 'contribucion']], ['nombreEn', 'Nombre (inglés)', false, ['name', 'nombre en', 'nombre ingles', 'english']], ['descEn', 'Descripción (inglés)', false, ['description', 'descripcion en', 'descripcion ingles']], ['dur', 'Duración', false, ['duracion']], ['inc', 'Qué incluye (separar con ;)', false, ['incluye', 'que incluye']]],
+      plantilla: [['Nombre', 'Rubro', 'Descripcion', 'Donación sugerida', 'Name', 'Description', 'Duracion', 'Incluye'], [['Taller de ejemplo', 'Talleres', 'Descripción del taller', '5000', 'Example workshop', 'Workshop description', '2 horas', 'Material; Certificado']]],
       parse: function (g1) {
         var er = [], nom = g1('nombre').replace(/\s+/g, ' '), c = catMenu(g1('cat')), ap = g1('aporte') ? CM.parseMonto(g1('aporte')) : 0;
-        if (nom.length < 3) er.push('Falta el nombre'); if (c === null) er.push('Rubro del menú desconocido'); if (isNaN(ap) || ap < 0) er.push('Aporte inválido');
+        if (nom.length < 3) er.push('Falta el nombre'); if (c === null) er.push('Rubro del menú desconocido'); if (isNaN(ap) || ap < 0) er.push('Donación inválida');
         return { er: er, id: CM.norm(nom), o: { nombre: nom, cat: c, desc: g1('desc'), cent: ap || 0, nombreEn: g1('nombreEn'), descEn: g1('descEn'), dur: g1('dur'), inc: g1('inc') } };
       },
       existe: function (id) { return CM.db.menu.draft.items.some(function (x) { return CM.norm(x.es.n) === id; }); },
@@ -427,7 +442,7 @@
   var INTEG = [
     ['Google Drive (carpetas del paciente)', 'manual', 'Hoy: enlaces Drive 1 y Drive 2 cargados a mano en cada ficha.', 'Para sincronizar archivos: cuenta Google de la fundación, proyecto con la API habilitada, pantalla de consentimiento y permisos mínimos (drive.file). Los tokens quedan cifrados en el servidor.'],
     ['Formularios de Google (historia y seguimiento)', 'manual', 'Activo: la demo abre los formularios y los muestra en el QR de la etiqueta.', 'La carga automática de respuestas a la ficha requiere conectar la hoja de respuestas.'],
-    ['Mercado Pago (aportes por QR o link)', 'pend', 'Pendiente de configuración.', 'Cuenta de la fundación, credenciales por canal seguro, webhooks con firma y pruebas en sandbox. Un aporte sólo se acredita con confirmación verificada del proveedor.'],
+    ['Mercado Pago (donaciones por QR o link)', 'pend', 'Pendiente de configuración.', 'Cuenta de la fundación, credenciales por canal seguro, webhooks con firma y pruebas en sandbox. Una donación sólo se acredita con confirmación verificada del proveedor.'],
     ['WhatsApp', 'manual', 'Activo: abre WhatsApp con un mensaje listo (envío manual). No es un envío automático.', 'El envío automático usa la API oficial de WhatsApp Business: cuenta, plantillas aprobadas, costos [VERIFICAR].'],
     ['Correo electrónico', 'pend', 'Pendiente de configuración.', 'SMTP o proveedor transaccional configurado en el servidor, con baja de comunicaciones y lista de supresión.'],
     ['Facturación electrónica ARCA (Factura C)', 'pend', 'Simulador sin validez fiscal.', 'Certificado digital, relación de servicio WSFE, punto de venta y pruebas de homologación [VERIFICAR en arca.gob.ar].'],
@@ -455,7 +470,7 @@
           if (r === 'admin') return '<td><span class="pill p-ok">Administrar</span></td>';
           return '<td><label class="sr" for="pm_' + r + '_' + m[0] + '">' + esc(m[1] + ' · ' + CM.ROLES[r]) + '</label><select id="pm_' + r + '_' + m[0] + '" class="in sm" name="' + r + '|' + m[0] + '">' + CM.LVL.map(function (l) { return opt(l, CM.LVL_L[l], (db.perms[r][m[0]] || '') === l); }).join('') + '</select></td>';
         }).join('') + '</tr>';
-      }).join('') + '</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn pri" type="submit">Guardar permisos</button><button class="btn" type="button" data-act="perms-reset">Restaurar valores por defecto</button></div></form><p class="hint">En la demo los permisos se aplican a las pantallas y a las acciones de los módulos de gestión; las pantallas originales (pacientes, dispensaciones, aportes) se controlan a nivel de acceso a la sección.</p></section>';
+      }).join('') + '</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn pri" type="submit">Guardar permisos</button><button class="btn" type="button" data-act="perms-reset">Restaurar valores por defecto</button></div></form><p class="hint">En la demo los permisos se aplican a las pantallas y a las acciones de los módulos de gestión; las pantallas originales (pacientes, dispensaciones, donaciones) se controlan a nivel de acceso a la sección.</p></section>';
   };
   CM.forms.perms = function (f) {
     if (!CM.need('usuarios', 'admin')) return;
@@ -561,7 +576,7 @@
   CM.acts['rb-toggle'] = function (t) {
     if (!CM.need('ajustes', 'admin')) return;
     var r = CM.rubro(t.getAttribute('data-id'));
-    if (r.activo && r.id === 'R-01') { CM.toast('«Aportes voluntarios» lo usa el sistema para los aportes: no se desactiva.', true); return; }
+    if (r.activo && r.id === 'R-01') { CM.toast('«Donaciones voluntarias» lo usa el sistema para las donaciones: no se desactiva.', true); return; }
     r.activo = !r.activo; CM.audit('Rubro financiero', r.n + (r.activo ? ' activado' : ' desactivado')); CM.save(); render();
   };
 })(window);

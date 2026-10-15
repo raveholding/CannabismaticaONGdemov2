@@ -7,14 +7,12 @@
 <meta name="theme-color" content="#0a0e0a">
 <meta name="robots" content="noindex">
 <title>Cannabismatica I+D · Sistema ONG (demo)</title>
-<meta name="description" content="Demo interactiva del sistema de gestión de la Fundación Cannabismatica Investigación y Desarrollo: pacientes por DNI, Drive, REPROCANN, trazabilidad de dispensaciones y aportes voluntarios.">
+<meta name="description" content="Demo interactiva del sistema de gestión de la Fundación Cannabismatica Investigación y Desarrollo: pacientes por DNI, Drive, REPROCANN, trazabilidad de dispensaciones y donaciones voluntarias.">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/app.css?v=23">
-<link rel="stylesheet" href="css/mods.css?v=23">
+<link rel="stylesheet" href="css/app.css?v=27">
+<link rel="stylesheet" href="css/mods.css?v=27">
+<link rel="stylesheet" href="css/theme.css?v=27">
 </head>
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
@@ -29,8 +27,8 @@
       <a class="logo-m" href="#/inicio" aria-label="Inicio"><img src="assets/icon-192.png" alt="Cannabismatica" width="34" height="34"></a>
       <div class="search" role="search">
         <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <label class="sr" for="q">Buscar paciente por DNI o nombre</label>
-        <input id="q" type="search" inputmode="search" autocomplete="off" placeholder="Buscar paciente por DNI…" aria-controls="sugg" aria-expanded="false">
+        <label class="sr" for="q">Buscar paciente por nombre, legajo o documento</label>
+        <input id="q" type="search" inputmode="search" autocomplete="off" placeholder="Buscar paciente (nombre, legajo, documento)…" aria-controls="sugg" aria-expanded="false">
         <div class="sugg" id="sugg" hidden></div>
       </div>
       <span class="grow"></span>
@@ -49,15 +47,17 @@
 <div id="toastRoot" aria-live="polite" role="status"></div>
 <div id="printArea" aria-hidden="true"></div>
 <noscript><p style="padding:20px;color:#fff">Esta demo necesita JavaScript activado.</p></noscript>
-<script src="js/qrcode.js?v=23"></script>
-<script src="js/core.js?v=23"></script>
-<script src="js/ext.js?v=23"></script>
-<script src="js/ui.js?v=23"></script>
-<script src="js/app.js?v=23"></script>
-<script src="js/m-caja.js?v=23"></script>
-<script src="js/m-gestion.js?v=23"></script>
-<script src="js/m-menu.js?v=23"></script>
-<script src="js/m-sistema.js?v=23"></script>
-<script src="js/boot.js?v=23"></script>
+<script src="js/qrcode.js?v=27"></script>
+<script src="js/core.js?v=27"></script>
+<script src="js/ext.js?v=27"></script>
+<script src="js/ui.js?v=27"></script>
+<script src="js/ident.js?v=27"></script>
+<script src="js/app.js?v=27"></script>
+<script src="js/m-caja.js?v=27"></script>
+<script src="js/m-gestion.js?v=27"></script>
+<script src="js/m-menu.js?v=27"></script>
+<script src="js/m-hc.js?v=27"></script>
+<script src="js/m-sistema.js?v=27"></script>
+<script src="js/boot.js?v=27"></script>
 </body>
 </html>

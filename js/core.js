@@ -2,7 +2,7 @@
 (function (g) {
   'use strict';
   var CM = g.CM = {};
-  var KEY = 'cmv2_db_v1';
+  var KEY = 'cmv2_db_v2';
   var memDB = null;
 
   /* ---------- utilidades ---------- */
@@ -116,7 +116,7 @@
     crema: { n: 'Crema tópica', unidad: 'u', un: 'unidades' }
   };
   CM.MEDIOS = { efectivo: 'Efectivo', transferencia: 'Transferencia', mercadopago: 'Mercado Pago (QR / link)', otro: 'Otro' };
-  CM.CONCEPTOS = ['Aporte voluntario', 'Contribución', 'Donación'];
+  CM.CONCEPTOS = ['Donación voluntaria', 'Contribución'];
   CM.REP_LABEL = { valido: 'Válido', vencido: 'Vencido', tramite: 'En trámite', sin: 'Sin REPROCANN' };
   CM.REP_CLASS = { valido: 'p-ok', vencido: 'p-bad', tramite: 'p-warn', sin: 'p-mu' };
 
@@ -298,7 +298,7 @@
     }
     function aporte(dni, dias, dispId, cent, medio, conFactura) {
       var id = CM.nextId('A'), f = CM.addDays(h, -dias);
-      var a = { id: id, fecha: f, ts: f + 'T15:05:00.000Z', dni: dni, disp: dispId || '', cent: cent, medio: medio, concepto: 'Aporte voluntario', obs: '', user: 'Operador demo', estado: 'registrado', comp: '' };
+      var a = { id: id, fecha: f, ts: f + 'T15:05:00.000Z', dni: dni, disp: dispId || '', cent: cent, medio: medio, concepto: 'Donación voluntaria', obs: '', user: 'Operador demo', estado: 'registrado', comp: '' };
       d.aportes.push(a);
       if (dispId) d.disp.forEach(function (x) { if (x.id === dispId) x.aporte = id; });
       if (conFactura) CM.emitirFacturaC(a, f);
@@ -329,7 +329,7 @@
     var nro = (CM.db.counters.FCN = (CM.db.counters.FCN || 0) + 1);
     var c = {
       id: CM.nextId('CP'), tipo: 'FC', pv: CM.db.ong.puntoVenta, nro: String(nro).padStart(8, '0'),
-      fecha: fecha || CM.hoy(), aporte: aporte.id, dni: aporte.dni, cent: aporte.cent,
+      fecha: fecha || CM.hoy(), aporte: aporte.id, dni: aporte.dni || '', rec: aporte.rec || null, cent: aporte.cent,
       concepto: aporte.concepto, cae: 'SIM' + String(Math.floor(Math.random() * 1e11)).padStart(11, '0'),
       caeVto: CM.addDays(fecha || CM.hoy(), 10), simulado: true, anulado: false, ref: ''
     };
@@ -341,7 +341,7 @@
     var nro = (CM.db.counters.NCN = (CM.db.counters.NCN || 0) + 1);
     var n = {
       id: CM.nextId('CP'), tipo: 'NCC', pv: CM.db.ong.puntoVenta, nro: String(nro).padStart(8, '0'),
-      fecha: CM.hoy(), aporte: comp.aporte, dni: comp.dni, cent: comp.cent, concepto: 'Anulación de Factura C ' + comp.pv + '-' + comp.nro + (motivo ? ' · ' + motivo : ''),
+      fecha: CM.hoy(), aporte: comp.aporte, dni: comp.dni || '', rec: comp.rec || null, cent: comp.cent, concepto: 'Anulación de Factura C ' + comp.pv + '-' + comp.nro + (motivo ? ' · ' + motivo : ''),
       cae: 'SIM' + String(Math.floor(Math.random() * 1e11)).padStart(11, '0'), caeVto: CM.addDays(CM.hoy(), 10), simulado: true, anulado: false, ref: comp.id
     };
     CM.db.comps.push(n);
