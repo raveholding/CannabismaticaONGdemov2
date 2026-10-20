@@ -3,6 +3,14 @@
 Sistema completo (HTML5, funciona sin conexión en el navegador) para prueba del cliente, del sistema de gestión de la **Fundación Cannabismatica Investigación y Desarrollo** (ONG de cannabis medicinal, Salta · Ley N.º 27.350 · REPROCANN).
 Para que el equipo y el cliente la recorran y definan correcciones. **No es el sistema final**: los datos son ficticios y se guardan sólo en el navegador de quien la abre.
 
+## Novedades (ONGF)
+- **Banner oficial del desarrollador (VINCULAR BUSINESS)** en el ingreso, el menú público y el pie: imagen con áreas clicables y botones reales de 48 px (WhatsApp, Llamar, Correo).
+- **Proveedores e insumos**: proveedores con CUIT validado, órdenes de compra, ingreso de mercadería atómico (stock, costo, deuda y egreso de caja en una sola operación; idempotente; comprobante no duplicable), cuenta corriente de sólo-agregar y pagos con rubro obligatorio.
+- **Caja**: «Operaciones de esta caja» con filtros, detalle y movimientos generados (sin tope), y **cierre administrativo** de una caja que quedó abierta de un día anterior (sellado y marcado).
+- **Club**: lectura del QR de la tarjeta con la cámara (cuando el navegador lo permite) o con lector USB; un sello por día; firma validada.
+- **Legajo y cultivo**: cada dispensación referencia su **ciclo de origen**; los ciclos muestran nombre arriba y código abajo, con cantidad y variedad editables con historial.
+- Pendiente (sólo especificado en `docs/SISTEMA_VB_ONGF.md`): asistente de voz, huellas, Drive con cuenta de servicio, Sheets/Formularios.
+
 ## Qué incluye
 
 | Módulo | Qué hace |

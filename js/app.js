@@ -338,7 +338,7 @@
       '<section class="card"><div class="row" style="margin-bottom:12px"><label class="sr" for="dsMes">Mes</label><select id="dsMes" class="in" style="max-width:200px">' + opt('todos', 'Todos los meses', mes === 'todos') + ml.map(function (m) { return opt(m, m.slice(5) + '/' + m.slice(0, 4), m === mes); }).join('') + '</select>' +
       '<label class="sr" for="dsFlt">Tipo de preparado</label><select id="dsFlt" class="in" style="max-width:260px">' + opt('', 'Todos los preparados', !flt) + Object.keys(CM.PRODUCTOS).map(function (k) { return opt(k, CM.PRODUCTOS[k].n, flt === k); }).join('') + '</select></div>' +
       (arr.length ? '<div class="tw"><table><thead><tr><th>N.º</th><th>Fecha</th><th>Paciente</th><th>Preparado</th><th class="n">Cantidad</th><th>Lote</th><th>Entregó</th><th></th></tr></thead><tbody>' + arr.map(function (d) {
-        return '<tr' + (d.anulada ? ' class="anulada"' : '') + '><td>' + esc(d.id) + '</td><td>' + CM.fmtFecha(d.fecha) + '</td><td><a href="#/paciente/' + esc(d.dni) + '">' + esc(nombreCorto(nombreDe(d.dni))) + '</a><br><small class="hint">DNI ' + esc(d.dni) + '</small></td><td>' + esc(d.nombre) + '</td><td class="n">' + esc(cantTxt(d.cant, d.unidad)) + '</td><td>' + esc(d.lote) + '</td><td>' + esc(d.user) + '</td><td>' +
+        return '<tr' + (d.anulada ? ' class="anulada"' : '') + '><td>' + esc(d.id) + '</td><td>' + CM.fmtFecha(d.fecha) + '</td><td><a href="#/paciente/' + esc(d.dni) + '">' + esc(nombreCorto(nombreDe(d.dni))) + '</a><br><small class="hint">DNI ' + esc(d.dni) + '</small></td><td>' + esc(d.nombre) + '</td><td class="n">' + esc(cantTxt(d.cant, d.unidad)) + '</td><td>' + esc(d.lote) + (d.cu ? '<br><small class="hint">Ciclo ' + esc(d.cu) + '</small>' : '') + '</td><td>' + esc(d.user) + '</td><td>' +
           (d.anulada ? '<span class="pill p-bad" title="' + esc(d.anulada.motivo) + '">Anulada</span>' : '<div class="row"><button class="btn sm" data-act="etiqueta" data-id="' + esc(d.id) + '">' + CM.icon('qr') + 'Etiqueta</button><button class="btn sm bad" data-act="anular-disp" data-id="' + esc(d.id) + '">Anular</button></div>') + '</td></tr>';
       }).join('') + '</tbody></table></div>' : tablaVacia('No hay dispensaciones en este período.')) + '</section>';
   };
@@ -647,6 +647,13 @@
 
   /* ---------- dispensar ---------- */
   CM.acts.dispensar = function (t) { modalDispensar(t.getAttribute('data-dni') || ''); };
+  /* Origen de cultivo (4.28.1): cada dispensación referencia el ciclo del que sale; sin ciclo válido se rechaza */
+  function ciclosActivos() { return (CM.db.cultivos || []).filter(function (c) { return c.estado === 'activo'; }); }
+  function origenCultivoHtml() {
+    var cs = ciclosActivos();
+    if (!cs.length) return '<div class="note warn">No hay ciclos de cultivo activos: la dispensación se registra <b>sin origen de cultivo</b>. Creá un ciclo en Trazabilidad → Planilla de cultivo.</div>';
+    return fl('Origen de cultivo (ciclo) *', '<select class="in" name="cu"><option value="">Elegí el ciclo de origen…</option>' + cs.map(function (c) { return opt(c.id, c.id + ' · ' + c.nombre + (c.variedad ? ' · ' + c.variedad : '')); }).join('') + '</select>');
+  }
   function modalDispensar(dni) {
     var p = dni ? CM.paciente(dni) : null;
     var lotes = CM.db.lotes, grupos = '';
@@ -662,6 +669,7 @@
           fl('Paciente * (nombre, legajo, DNI, CUIT o CUIL)', '<input class="in" id="dsDni" name="dni" autocomplete="off" placeholder="Ej.: María, L-251015-… o 99000001"><span id="dsPac" class="hint" aria-live="polite"></span>')) +
         '<div id="dsAvisos" aria-live="polite"></div>' +
         fl('Preparado y lote *', '<select class="in" id="dsLote" name="lote"><option value="">Elegí un preparado…</option>' + grupos + '</select>') +
+        origenCultivoHtml() +
         '<div class="f f2">' + flr('Cantidad entregada * <span id="dsUni" style="color:var(--ac)"></span>', '<input class="in num" name="cant" inputmode="decimal" placeholder="0"><span id="dsDisp" class="hint"></span>') +
         fl('Indicación / posología', '<input class="in" name="indic" placeholder="Según indicación médica">') + '</div>' +
         flr('Observación<span id="dsObsReq"></span>', '<textarea class="in" name="obs" style="min-height:64px" placeholder="Obligatoria si el REPROCANN está en trámite, sin cargar o se supera el tope"></textarea>') +
@@ -693,6 +701,11 @@
     if (cant > stock) return fail(f, 'cant', 'No alcanza el stock del lote: quedan ' + cantTxt(stock, l.unidad) + '.');
     var reglas = CM.reglasDispensar(p);
     if (reglas.bloquea) return fail(f, '', 'No se puede dispensar: ' + reglas.msgs.filter(function (m) { return m.t === 'bad'; }).map(function (m) { return m.m; }).join(' '));
+    var cu = e.cu ? e.cu.value : '';
+    if (ciclosActivos().length) {
+      var cic = CM.cultivo ? CM.cultivo(cu) : null;
+      if (!cic || cic.estado !== 'activo') return fail(f, 'cu', 'Elegí el origen de cultivo (ciclo activo): toda dispensación referencia su ciclo.');
+    }
     var obs = e.obs.value.trim(), pideObs = reglas.pideObs, tope = CM.db.cfg.topeMensualG;
     if (l.unidad === 'g' && tope && CM.gramosMes(dni, CM.mesActual()) + cant > tope) {
       pideObs = true;
@@ -703,7 +716,7 @@
     if (e.aporte.value.trim()) { aporte = CM.parseMonto(e.aporte.value); if (isNaN(aporte)) return fail(f, 'aporte', 'La donación no es un importe válido (ej.: 15.000 o 15000,50).'); }
     f.dataset.busy = '1';
     var h = CM.hoy(), id = CM.nextId('D');
-    CM.db.disp.push({ id: id, fecha: h, ts: new Date().toISOString(), dni: dni, lote: l.id, prod: l.prod, nombre: l.nombre, quim: l.quim, unidad: l.unidad, cant: cant, indic: e.indic.value.trim(), obs: obs, user: CM.db.cfg.operador, aporte: '', anulada: null });
+    CM.db.disp.push({ id: id, fecha: h, ts: new Date().toISOString(), dni: dni, lote: l.id, prod: l.prod, nombre: l.nombre, quim: l.quim, unidad: l.unidad, cant: cant, indic: e.indic.value.trim(), obs: obs, user: CM.db.cfg.operador, aporte: '', anulada: null, cu: cu || '', tipoSeg: 'dispensación' });
     CM.addMov(l.id, 'dispensacion', -cant, id, '');
     var ap = null, comp = null;
     if (aporte > 0) {
@@ -712,7 +725,7 @@
       CM.audit('Donación voluntaria', ap.id + ' · Legajo ' + CM.legDe(dni) + ' · ' + CM.fmtMoney(aporte));
       if (e.fc.checked) { comp = CM.emitirFacturaC(ap); CM.audit('Factura C simulada', comp.pv + '-' + comp.nro + ' · ' + ap.id); }
     }
-    CM.audit('Dispensación', id + ' · Legajo ' + CM.legDe(dni) + ' · ' + l.nombre + ' · ' + cantTxt(cant, l.unidad) + (obs ? ' · obs: ' + obs : ''));
+    CM.audit('Dispensación', id + ' · Legajo ' + CM.legDe(dni) + (cu ? ' · ciclo ' + cu : '') + ' · ' + l.nombre + ' · ' + cantTxt(cant, l.unidad) + (obs ? ' · obs: ' + obs : ''));
     CM.save(); CM.modal.close(true); render();
     exitoDispensacion(id, comp);
   };

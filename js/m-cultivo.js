@@ -108,7 +108,10 @@
     var tabla = '<div class="tw"><table class="cult"><thead><tr><th rowspan="2" class="n">N°</th><th rowspan="2">Fecha</th><th rowspan="2" class="n">Día</th><th rowspan="2" class="n">Semana</th><th rowspan="2">Fase</th><th colspan="2" class="c">Riego</th><th rowspan="2" class="n">H %</th><th rowspan="2" class="n">Temp °C</th><th colspan="2" class="c">R. Off</th><th rowspan="2">Observaciones</th><th rowspan="2">Encargado</th><th rowspan="2"></th></tr><tr><th class="n">PH</th><th class="n">EC</th><th class="n">PH</th><th class="n">EC</th></tr></thead><tbody>' +
       (filas || '<tr><td colspan="14"><div class="empty">Sin registros todavía.</div></td></tr>') + '</tbody></table></div>';
     var drive = CM.driveHtml ? CM.driveHtml(c) : '';
-    return '<section class="card" style="margin-top:14px"><div class="row sp"><div><h2>' + esc(c.id) + ' · ' + esc(c.nombre) + '</h2><p class="hint" style="margin:2px 0 0">Lote / sala: ' + esc(c.lote) + ' · Inicio ' + CM.fmtFecha(c.inicio) + (c.notas ? ' · ' + esc(c.notas) : '') + '</p></div><div class="row">' +
+    return '<section class="card" style="margin-top:14px"><div class="row sp"><div><h2>' + esc(c.nombre) + '</h2><p style="margin:2px 0 0"><span class="pill p-info" aria-label="Código del ciclo">' + esc(c.id) + '</span></p><p class="hint" style="margin:6px 0 0">Lote / sala: ' + esc(c.lote) + ' · Inicio ' + CM.fmtFecha(c.inicio) + (c.notas ? ' · ' + esc(c.notas) : '') + '</p>' +
+      '<p style="margin:6px 0 0"><b>Cantidad:</b> <span data-cu-cant>' + (c.cantidad != null ? esc(nf(c.cantidad) + ' ' + (c.unidad || '')) : '—') + '</span> · <b>Variedad:</b> <span data-cu-var>' + esc(c.variedad || '—') + '</span> ' +
+      (c.estado === 'activo' && CM.can('cultivo', 'oper') ? '<button class="btn sm" data-act="cu-meta" data-id="' + esc(c.id) + '">' + CM.icon('edit') + 'Editar cantidad y variedad</button>' : '') + '</p>' +
+      ((c.metaHist || []).length ? '<details><summary class="hint">Historial de cambios (' + c.metaHist.length + ')</summary><ul class="tl">' + c.metaHist.slice().reverse().map(function (h) { return '<li>' + esc(CM.fmtFH(h.ts)) + ' · ' + esc(h.user) + ' · ' + esc(nf(h.antes.cantidad)) + ' ' + esc(h.antes.unidad || '') + ' / ' + esc(h.antes.variedad || '—') + ' → ' + esc(nf(h.despues.cantidad)) + ' ' + esc(h.despues.unidad || '') + ' / ' + esc(h.despues.variedad || '—') + ' · ' + esc(h.motivo) + '</li>'; }).join('') + '</ul></details>' : '') + '</div><div class="row">' +
       (abierto && CM.can('cultivo', 'oper') ? '<button class="btn pri" data-act="cr-nuevo" data-id="' + esc(c.id) + '">' + CM.icon('plus') + 'Agregar registro</button>' : '') +
       '<button class="btn" data-act="cu-print" data-id="' + esc(c.id) + '">' + CM.icon('print') + 'Imprimir planilla</button><button class="btn" data-act="cu-csv" data-id="' + esc(c.id) + '">' + CM.icon('dl') + 'Exportar CSV</button>' +
       (CM.can('cultivo', 'admin') ? (abierto ? '<button class="btn" data-act="cu-cerrar" data-id="' + esc(c.id) + '">' + CM.icon('lock') + 'Cerrar ciclo</button>' : '<button class="btn" data-act="cu-reabrir" data-id="' + esc(c.id) + '">' + CM.icon('undo') + 'Reabrir</button>') : '') + '</div></div>' +
@@ -149,6 +152,27 @@
     var c = { id: cicloId(), nombre: nom, lote: lote, inicio: e.inicio.value, estado: 'activo', creado: new Date().toISOString(), user: CM.db.cfg.operador, notas: e.notas.value.trim(), drive: { versiones: [] } };
     CM.db.cultivos.push(c); CM.cu.sel = c.id; CM.cu.tab = CM.cu.tab || 'lotes';
     CM.audit('Cultivo: ciclo creado', c.id + ' · ' + c.nombre + ' · ' + c.lote); CM.save(); CM.modal.close(true); render(); CM.toast('Ciclo ' + c.id + ' creado.');
+  };
+  /* Cantidad y variedad editables: cada cambio guarda el valor anterior, el motivo y la persona (nada se pisa en silencio) */
+  CM.acts['cu-meta'] = function (t) {
+    if (!CM.need('cultivo', 'oper')) return; var c = CM.cultivo(t.getAttribute('data-id')); if (!c || c.estado !== 'activo') return;
+    CM.modal.open({ title: 'Cantidad y variedad · ' + c.id, body: '<form id="fCM2" data-form="cu-meta" class="f" autocomplete="off" novalidate><input type="hidden" name="id" value="' + esc(c.id) + '"><div class="f f2">' +
+      fl('Cantidad', '<input class="in num" name="cant" inputmode="decimal" value="' + (c.cantidad != null ? esc(String(c.cantidad).replace('.', ',')) : '') + '">') +
+      fl('Unidad', '<select class="in" name="uni">' + ['g', 'kg', 'unidades'].map(function (u) { return opt(u, u, (c.unidad || 'unidades') === u); }).join('') + '</select>') + '</div>' +
+      fl('Variedad (genética / cepa)', '<input class="in" name="vari" maxlength="80" value="' + esc(c.variedad || '') + '">') + fl('Motivo del cambio' + ((c.cantidad != null || c.variedad) ? ' *' : ''), '<input class="in" name="motivo" maxlength="120" placeholder="Ej.: recuento de plantas">') +
+      '<p class="err" role="alert" data-err></p></form>', footer: '<button class="btn" type="button" data-act="modal-close">Cancelar</button><button class="btn pri" type="submit" form="fCM2">Guardar</button>' });
+  };
+  CM.forms['cu-meta'] = function (f) {
+    if (!CM.need('cultivo', 'oper')) return; var e = f.elements, c = CM.cultivo(e.id.value); if (!c || c.estado !== 'activo') return fail(f, '', 'El ciclo está cerrado.');
+    var cant = e.cant.value.trim() === '' ? null : CM.parseCant(e.cant.value);
+    if (cant !== null && (isNaN(cant) || cant < 0)) return fail(f, 'cant', 'La cantidad no es válida (hasta 2 decimales).');
+    var vari = e.vari.value.trim().replace(/\s+/g, ' '), tenia = c.cantidad != null || !!c.variedad, mot = e.motivo.value.trim();
+    if (cant === (c.cantidad == null ? null : c.cantidad) && vari === (c.variedad || '') && e.uni.value === (c.unidad || 'unidades')) return fail(f, '', 'No cambió nada.');
+    if (tenia && mot.length < 4) return fail(f, 'motivo', 'Escribí el motivo del cambio.');
+    var antes = { cantidad: c.cantidad == null ? null : c.cantidad, unidad: c.unidad || '', variedad: c.variedad || '' };
+    c.cantidad = cant; c.unidad = e.uni.value; c.variedad = vari;
+    (c.metaHist = c.metaHist || []).push({ ts: new Date().toISOString(), user: CM.db.cfg.operador, motivo: mot || 'Carga inicial', antes: antes, despues: { cantidad: cant, unidad: c.unidad, variedad: vari } });
+    CM.audit('Cultivo: cantidad y variedad', c.id + ' · ' + (cant == null ? '—' : cant + ' ' + c.unidad) + ' · ' + (vari || '—') + (mot ? ' · ' + mot : '')); CM.save(); CM.modal.close(true); render(); CM.toast('Ciclo actualizado.');
   };
   CM.acts['cu-cerrar'] = function (t) {
     if (!CM.need('cultivo', 'admin')) return; var c = CM.cultivo(t.getAttribute('data-id')); if (!c) return;

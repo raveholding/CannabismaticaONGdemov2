@@ -102,6 +102,7 @@ tbody tr.click:hover{background:var(--s2)}
 /* forms */
 .f{display:grid;gap:14px}
 .f2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.f3{grid-template-columns:2fr 1fr 1fr}
 label.fl{display:grid;gap:6px;font-size:13px;color:var(--mu);font-weight:500}
 label.fl>span b{color:var(--bad)}
 .in,select.in,textarea.in{width:100%;min-height:48px;border-radius:12px;border:1px solid var(--bd2);background:var(--bg);padding:10px 14px;color:var(--tx);font-size:16px}
@@ -204,7 +205,7 @@ legend{padding:0 8px;color:var(--ac);font-weight:600;font-size:14px}
   .toast{bottom:92px}
 }
 @media (max-width:640px){
-  .g2,.g3,.g4,.f2{grid-template-columns:1fr}
+  .g2,.g3,.g4,.f2,.f3{grid-template-columns:1fr}
   .hb{grid-template-columns:110px 1fr 56px}
   h1{font-size:1.35rem}
   .md footer .btn{flex:1}
@@ -219,3 +220,13 @@ html:not(.rdy) .app{visibility:hidden}
 /* Créditos del desarrollador: botones reales de al menos 48 px */
 .dev-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px}
 .dev-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;min-width:96px;padding:0 16px;border:1px solid currentColor;border-radius:10px;font-weight:600;text-decoration:none}
+
+/* Banner oficial del desarrollador */
+.vb-banner{position:relative;max-width:720px;margin:10px auto 0;border-radius:12px;overflow:hidden}
+.vb-banner img{display:block;width:100%;height:auto}
+.vb-hit{position:absolute;top:84.5%;height:9.5%;border-radius:999px}
+.vb-wa{left:5%;width:25.5%}
+.vb-ml{left:31.5%;width:44.5%}
+.vb-hit:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.credits{text-align:center}
+.clk{cursor:pointer}.clk:hover,.clk:focus-visible{background:var(--bg2,rgba(255,255,255,.05))}

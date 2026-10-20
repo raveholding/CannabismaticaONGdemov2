@@ -51,6 +51,17 @@
     nfc: '<path d="M6 8c2.5 2.7 2.5 5.3 0 8M10 6c4 3.7 4 8.3 0 12M14 4c5.5 4.7 5.5 11.3 0 16"/>',
     print2: '<path d="M7 9V3h10v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7Z"/>'
   };
+  /* Banner oficial del desarrollador (VINCULAR BUSINESS): imagen con áreas clicables sobre las píldoras + botones reales de 48 px */
+  CM.DEV = { nombre: 'VINCULAR BUSINESS', tel: '(387) 4484132', wa: '5493874484132', mail: 'vincularbusiness@gmail.com', lema: 'Tu idea, en buenas manos.' };
+  CM.devBanner = function (ctx) {
+    var D = CM.DEV, wa = 'https://wa.me/' + D.wa + '?text=' + encodeURIComponent('Hola ' + D.nombre + ', ' + (ctx || 'consulto por el sistema'));
+    return '<div class="vb-banner"><img src="assets/vb-banner.webp" width="1376" height="768" loading="lazy" alt="' + D.nombre + ': digitalización, software de gestión y fidelización para comercios y servicios de Argentina. WhatsApp ' + D.tel + ' · ' + D.mail + '">' +
+      '<a class="vb-hit vb-wa" href="' + wa + '" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp ' + D.tel + '"></a>' +
+      '<a class="vb-hit vb-ml" href="mailto:' + D.mail + '" aria-label="Correo ' + D.mail + '"></a></div>' +
+      '<div class="dev-btns"><a class="dev-btn" href="' + wa + '" target="_blank" rel="noopener noreferrer">WhatsApp</a><a class="dev-btn" href="tel:+' + D.wa + '">Llamar</a><a class="dev-btn" href="mailto:' + D.mail + '">Correo</a></div>';
+  };
+  function pintarCreditos() { var e = document.getElementById('credits'); if (e && !e.querySelector('.vb-banner')) e.insertAdjacentHTML('beforeend', CM.devBanner('consulto por el sistema de la ONG')); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pintarCreditos); else pintarCreditos();
   CM.icon = function (n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[n] || '') + '</svg>'; };
 
   /* ---------- avisos ---------- */
