@@ -89,3 +89,8 @@ assets/           logo e íconos
 ```
 
 Desarrollado por **Rave Holding** · WhatsApp +54 9 387 514-3900 · raveholding@gmail.com
+
+## Actualización (octubre 2026)
+- Esta demo sigue siendo local (sin nube, con usuarios y datos de ejemplo) y sirve para mostrar el sistema a otras organizaciones. La versión con nube real (ingreso con Supabase, sincronización, roles en servidor) es la de Fundación Cannabismatica: https://raveholding.github.io/Cannabismatica/
+- Corrección incorporada: identificadores (rubros, personal, cajas) sin choques entre equipos (`CM.idRand`, `CM.siguienteCaja`).
+- Prompt maestro para ONG actualizado: `docs/SISTEMA_VB_ONGF.md` (asistente de voz, club, tarjetas, proveedores, caja, banner del desarrollador, legajo/biometría/Drive/Sheets/ciclos; sin mayorista ni multisucursal) y `docs/Sistema-VB-ONG.md` (v3.0). Esos módulos nuevos están especificados, todavía no implementados en esta demo.

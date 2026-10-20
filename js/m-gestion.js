@@ -159,7 +159,7 @@
     if (n.length < 2) return fail(f, 'n', 'Escribí el nombre del rubro.');
     if (CM.db.irubros.some(function (r) { return CM.norm(r.n) === CM.norm(n) && r.id !== e.id.value; })) return fail(f, 'n', 'Ya existe un rubro con ese nombre.');
     var r = e.id.value ? sel(CM.db.irubros, e.id.value) : null;
-    if (r) { r.n = n; r.color = e.color.value; } else CM.db.irubros.push({ id: 'IR-' + (CM.db.irubros.length + 1 + Math.floor(Math.random() * 1000)), n: n, color: e.color.value });
+    if (r) { r.n = n; r.color = e.color.value; } else CM.db.irubros.push({ id: CM.idRand('IR-'), n: n, color: e.color.value });
     CM.audit('Rubro de insumos', n); CM.save(); CM.modal.close(true); render(); CM.toast('Rubro guardado.');
   };
   CM.acts['irub-del'] = function (t) {
@@ -433,7 +433,7 @@
     if (CM.db.staff.some(function (x) { return x.dni === dni && x.id !== e.id.value; })) return fail(f, 'dni', 'Ya hay una persona con ese DNI.');
     var x = e.id.value ? sel(CM.db.staff, e.id.value) : null;
     if (x) { x.nombre = n; x.dni = dni; x.tel = e.tel.value.trim(); x.cargo = e.cargo.value.trim(); x.area = e.area.value.trim(); x.activo = e.activo.checked; CM.audit('Personal editado', x.id + ' · ' + n); }
-    else { x = { id: 'E' + (CM.db.staff.length + 1 + Math.floor(Math.random() * 90)), nombre: n, dni: dni, tel: e.tel.value.trim(), cargo: e.cargo.value.trim(), area: e.area.value.trim(), activo: true }; CM.db.staff.push(x); CM.audit('Personal: alta', x.id + ' · ' + n); }
+    else { x = { id: CM.idRand('E'), nombre: n, dni: dni, tel: e.tel.value.trim(), cargo: e.cargo.value.trim(), area: e.area.value.trim(), activo: true }; CM.db.staff.push(x); CM.audit('Personal: alta', x.id + ' · ' + n); }
     CM.save(); CM.modal.close(true); render(); CM.toast('Guardado.');
   };
   function carnetHtml(e) {

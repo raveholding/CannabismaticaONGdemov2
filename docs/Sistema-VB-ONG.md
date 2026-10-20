@@ -1,6 +1,6 @@
 # Sistema VB ONG — prompt maestro para ONG (base reutilizable)
 
-Versión: 2.0 (v1.0 + carga del menú público, créditos, Planilla de cultivo, Google Drive con nombres únicos y modo "sistema completo") · Rave Holding · Deriva de Sistema VB (RAVE CORE) y de la demo validada de Fundación Cannabismatica I+D.
+Versión: 3.0 (v2.0 + nube real con Supabase, ingreso con Auth, seguridad y pruebas; ver sección 12) · Rave Holding · Deriva de Sistema VB (RAVE CORE) y de la demo validada de Fundación Cannabismatica I+D.
 Uso: este documento se agrega **sobre** el prompt maestro "Sistema VB" (secciones B a P). Donde haya diferencias, manda este documento para ONG. Antes de cambiar un repositorio, inspeccionar el código real. Todo lo descripto es requisito, no funcionalidad ya hecha.
 La estética NO forma parte de este prompt: cada ONG define logo, colores y tipografía en su ficha (sección 1).
 
@@ -104,3 +104,13 @@ Suites automáticas de flujos reales: panel, menú público, ingreso/roles, impo
 
 ## 11. Entrega final (formato)
 1) Qué se implementó y qué pruebas pasaron (cifras). 2) Qué debe hacer la ONG (textos legales, certificado de ARCA, cuentas de integraciones, umbral). 3) Qué no se pudo probar y riesgos abiertos. 4) Créditos de Rave Holding.
+
+## 12. Versión 3 — nube real y endurecimiento (reemplaza al modo "sistema completo para probar")
+- **Nube**: un proyecto Supabase propio de la ONG en la región pedida por el cliente (São Paulo). Esquema único idempotente (`supabase/01-esquema.sql`), RLS en todas las tablas, escritura sólo por funciones `SECURITY DEFINER` con `search_path` fijo (`sync_push` valida lista cerrada de colecciones, rol y nivel por módulo, stock no negativo con bloqueo, cierres congelados, auditoría sólo-agregar). Lectura pública únicamente del menú publicado y envío de solicitudes con límite de uso y nonce idempotente.
+- **Ingreso**: Supabase Auth (correo + clave; mínimo 8 con letras y números; sin registro libre). Primer administrador creado con un código de configuración de un solo uso (sólo se guarda el hash). Usuarios y claves temporales administrados por funciones del servidor; la clave temporal obliga al cambio. Soporte: `soporte_restablecer_clave` sólo desde el SQL Editor.
+- **Cliente**: base cifrada por persona (AES-256-GCM, PBKDF2-SHA256 200.000) en IndexedDB; nada sensible en `localStorage`; ingreso sin conexión limitado a 7 días; cierre por inactividad; ids aleatorios y contadores por equipo para evitar colisiones; caja independiente por equipo; sincronización cada 15 s con rechazos visibles; permisos y baja de usuario aplicados en cada ciclo.
+- **Formularios públicos** (historia clínica, turnero, club) van al servidor y el equipo los incorpora al sincronizar; nunca se declara un alta exitosa sin confirmación del servidor.
+- **Pruebas exigidas**: servidor (SQL, 49 controles), cliente contra servidor simulado (login, cifrado en reposo, offline, dos equipos, concurrencia de stock, roles y escrituras prohibidas, baja de usuario, cambio de clave, formularios públicos, vaciado, cierre de caja congelado, inactividad), regresión de la versión anterior y verificación en vivo sin credenciales (acceso anónimo denegado, registro deshabilitado). Las credenciales reales nunca se escriben en pruebas automáticas contra producción.
+- **Entrega**: `supabase/90-reiniciar-para-entrega.sql` deja el proyecto vacío y muestra un código de configuración nuevo; el código se entrega por canal seguro, nunca en el repositorio.
+- **Límites a declarar**: edición simultánea del mismo registro = gana la última; caja abierta en equipo perdido; deshacer importación y restaurar respaldo desactivados con nube; respaldos automáticos según plan de Supabase [VERIFICAR]; normativa y textos legales [VERIFICAR con asesor]; Factura C simulada; Drive sin cuenta real probada.
+

@@ -176,8 +176,8 @@
     if (CM.cajaAbierta()) return fail(f, 'ini', 'Ya hay una caja abierta.');
     var c = CM.parseMonto(f.elements.ini.value);
     if (isNaN(c)) return fail(f, 'ini', 'Escribí el fondo inicial (puede ser 0 si empieza vacía: escribí 0).');
-    var n = CM.db.cajas.length + 1;
-    var caja = { id: 'CJ-' + String(n).padStart(6, '0'), nro: n, fecha: CM.hoy(), estado: 'abierta', apTs: new Date().toISOString(), apUser: CM.db.cfg.operador, inicial: c, cierre: null };
+    var sc = CM.siguienteCaja(), n = sc.nro;
+    var caja = { id: sc.id, nro: n, fecha: CM.hoy(), estado: 'abierta', apTs: new Date().toISOString(), apUser: CM.db.cfg.operador, inicial: c, cierre: null };
     CM.db.cajas.push(caja); CM.audit('Apertura de caja', caja.id + ' · fondo ' + money(c)); CM.save(); CM.modal.close(true); render(); CM.toast('Caja abierta.');
   };
   var TIT = { ingreso: 'Ingreso de efectivo', egreso: 'Egreso de efectivo', retiro: 'Retiro de efectivo', reintegro: 'Reintegro' };

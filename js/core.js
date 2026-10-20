@@ -131,6 +131,16 @@
     memDB = t;
     try { g.localStorage.setItem(KEY, t); } catch (e) { /* queda en memoria */ }
   };
+  // identificadores que no chocan entre equipos (aleatorios, 64 bits)
+  CM.idRand = function (pref) {
+    var a = new Uint32Array(2);
+    if (g.crypto && g.crypto.getRandomValues) g.crypto.getRandomValues(a); else { a[0] = Math.random() * 4e9; a[1] = Math.random() * 4e9; }
+    return pref + a[0].toString(36) + a[1].toString(36);
+  };
+  CM.siguienteCaja = function () {
+    var n = CM.db.cajas.length + 1;
+    return { id: 'CJ-' + String(n).padStart(6, '0'), nro: n };
+  };
   CM.nextId = function (pref) {
     var c = CM.db.counters;
     c[pref] = (c[pref] || 0) + 1;

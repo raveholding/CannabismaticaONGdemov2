@@ -570,7 +570,7 @@
     if (n.length < 3) return fail(f, 'n', 'Escribí el nombre del rubro.');
     if (CM.db.rubros.some(function (r) { return CM.norm(r.n) === CM.norm(n) && r.id !== e.id.value; })) return fail(f, 'n', 'Ya existe un rubro con ese nombre.');
     var r = e.id.value ? CM.rubro(e.id.value) : null;
-    if (r) { r.n = n; r.tipo = e.tipo.value; } else CM.db.rubros.push({ id: 'R-' + String(CM.db.rubros.length + 1).padStart(2, '0') + Math.floor(Math.random() * 10), n: n, tipo: e.tipo.value, activo: true });
+    if (r) { r.n = n; r.tipo = e.tipo.value; } else CM.db.rubros.push({ id: CM.idRand('R-'), n: n, tipo: e.tipo.value, activo: true });
     CM.audit('Rubro financiero', n + ' · ' + e.tipo.value); CM.save(); CM.modal.close(true); render();
   };
   CM.acts['rb-toggle'] = function (t) {
