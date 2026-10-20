@@ -440,7 +440,7 @@
      INTEGRACIONES
      =================================================================== */
   var INTEG = [
-    ['Google Drive (carpetas del paciente)', 'manual', 'Hoy: enlaces Drive 1 y Drive 2 cargados a mano en cada ficha.', 'Para sincronizar archivos: cuenta Google de la fundación, proyecto con la API habilitada, pantalla de consentimiento y permisos mínimos (drive.file). Los tokens quedan cifrados en el servidor.'],
+    ['Google Drive (carpetas del paciente)', 'manual', 'Cada paciente tiene una carpeta por legajo: se crea con un clic desde la ficha (Drive de la ONG) o se vincula a mano.', 'Para sincronizar archivos: cuenta Google de la fundación, proyecto con la API habilitada, pantalla de consentimiento y permisos mínimos (drive.file). Los tokens quedan cifrados en el servidor.'],
     ['Formularios de Google (historia y seguimiento)', 'manual', 'Activo: el sistema abre los formularios y los muestra en el QR de la etiqueta.', 'La carga automática de respuestas a la ficha requiere conectar la hoja de respuestas.'],
     ['Mercado Pago (donaciones por QR o link)', 'pend', 'Pendiente de configuración.', 'Cuenta de la fundación, credenciales por canal seguro, webhooks con firma y pruebas en sandbox. Una donación sólo se acredita con confirmación verificada del proveedor.'],
     ['WhatsApp', 'manual', 'Activo: abre WhatsApp con un mensaje listo (envío manual). No es un envío automático.', 'El envío automático usa la API oficial de WhatsApp Business: cuenta, plantillas aprobadas, costos [VERIFICAR].'],

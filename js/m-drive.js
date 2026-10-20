@@ -56,10 +56,12 @@
   function listar(query) { return api(API + '?q=' + encodeURIComponent(query) + '&fields=' + encodeURIComponent('files(id,name,appProperties,webViewLink)') + '&pageSize=100&spaces=drive'); }
 
   /* carpeta propia de este sistema: se busca por clave (no por nombre) para no duplicarla */
-  function carpeta(clave, nombre) {
+  function carpeta(clave, nombre, parent) {
     return listar("mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='vbongKey' and value='" + q(clave) + "' }").then(function (r) {
       if (r.files && r.files.length) return r.files[0];
-      return api(API + '?fields=id,name', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, mimeType: 'application/vnd.google-apps.folder', appProperties: { vbongKey: clave, vbong: '1' } }) });
+      var meta = { name: nombre, mimeType: 'application/vnd.google-apps.folder', appProperties: { vbongKey: clave, vbong: '1' } };
+      if (parent) meta.parents = [parent];
+      return api(API + '?fields=id,name', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta) });
     });
   }
   function nombreLibre(carp, base) {
@@ -98,7 +100,9 @@
 
   /* carpeta del legajo de un paciente (nombre único: contiene el legajo) */
   CM.driveCarpetaPaciente = function (p) {
-    return asegurar().then(function () { return carpeta('legajo|' + p.leg, p.driveCarpeta || ('Legajo ' + p.leg + ' · ' + p.nombre)); }).then(function (cf) {
+    return asegurar().then(function () { return carpeta('legajos-raiz', 'Legajos'); }).then(function (raiz) {
+      return carpeta('legajo|' + p.leg, CM.nombreCarpetaLegajo(p), raiz.id);
+    }).then(function (cf) {
       p.driveId = cf.id; CM.audit('Drive: carpeta de legajo', 'Legajo ' + p.leg); CM.save(); return cf;
     });
   };

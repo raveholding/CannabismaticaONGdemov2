@@ -233,20 +233,38 @@
   };
 
   /* ---------- ficha del paciente ---------- */
-  function driveCard(p, w) {
-    var u = p['drive' + w];
-    var tit = w === 1 ? 'Drive 1 · Ficha de datos y documentación' : 'Drive 2 · Historial clínico';
-    var sub = w === 1 ? 'Datos personales y documentación médica del paciente.' : 'Historia clínica y evolución del paciente.';
-    var h = '<div class="card flat drive"><div class="t">' + CM.icon('drive') + '<div><h3 style="margin:0">' + esc(tit) + '</h3><span class="hint">' + esc(sub) + '</span></div></div>';
-    if (u) {
-      h += '<a class="btn pri" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir en Google Drive</a><div class="u">' + esc(u) + '</div>' +
-        '<div class="row"><button class="btn sm" data-act="copiar" data-v="' + esc(u) + '">' + CM.icon('copy') + 'Copiar enlace</button><button class="btn sm" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">Cambiar enlace</button></div>';
-      if (u === 'https://drive.google.com/drive/my-drive') h += '<span class="hint">Enlace de ejemplo: en el sistema con la nube configurada cada paciente tiene su propia carpeta.</span>';
-    } else {
-      h += '<div class="note warn">Sin carpeta vinculada todavía. Nombre único sugerido para la carpeta: <b>' + esc(p.driveCarpeta || p.leg || '') + '</b> (lleva el legajo, así nunca choca con otra).</div><button class="btn" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">' + CM.icon('plus') + 'Vincular carpeta de Drive</button>';
-    }
-    return h + '</div>';
+  /* Una sola carpeta por legajo (documentos, imágenes, notas, recetas). Los enlaces cargados antes en «Drive 1» se conservan;
+     un «Drive 2» viejo, si existe, se muestra como carpeta anterior de historial clínico. */
+  CM.nombreCarpetaLegajo = function (p) { return (p.leg || 'SIN-LEGAJO') + '_' + (CM.soloDigitos(p.dni).length >= 7 && CM.soloDigitos(p.dni).length <= 11 ? CM.soloDigitos(p.dni) : 'SD'); };
+  function enlaceFila(u, w, p, rotulo) {
+    return '<div style="margin-top:8px">' + (rotulo ? '<small class="hint">' + esc(rotulo) + '</small><br>' : '') +
+      '<a class="btn pri" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir carpeta en Google Drive</a>' +
+      '<div class="row" style="margin-top:6px"><button class="btn sm" data-act="copiar" data-v="' + esc(u) + '">' + CM.icon('copy') + 'Copiar enlace</button><button class="btn sm" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">Cambiar enlace</button></div></div>';
   }
+  function carpetaLegajo(p) {
+    var u1 = p.drive1, u2 = p.drive2, conf = !!(CM.db.ong && CM.db.ong.driveClientId), oper = CM.can('pacientes', 'oper');
+    var h = '<section class="card drive" style="margin-top:14px"><div class="t">' + CM.icon('drive') + '<div><h3 style="margin:0">Carpeta del legajo · ' + esc(p.leg || '—') + '</h3><span class="hint">Documentos, imágenes, notas, recetas y estudios de este paciente. Una sola carpeta por legajo.</span></div></div>';
+    if (u1 || u2) {
+      if (u1) h += enlaceFila(u1, 1, p, '');
+      if (u2) h += enlaceFila(u2, 2, p, 'Carpeta de historial clínico (vinculada antes)');
+      if (u1 === 'https://drive.google.com/drive/my-drive') h += '<p class="hint">Enlace de ejemplo: en el sistema real cada paciente tiene su propia carpeta.</p>';
+    } else {
+      h += '<div class="note warn">Este paciente todavía no tiene carpeta. Nombre que se le asigna: <b>' + esc(CM.nombreCarpetaLegajo(p)) + '</b> (lleva el legajo, así nunca choca con otra) dentro de la carpeta «Legajos» de la ONG.</div>' +
+        (oper ? '<div class="row"><button class="btn pri" data-act="drive-crear" data-dni="' + esc(p.dni) + '">' + CM.icon('plus') + 'Crear carpeta del legajo en Drive</button><button class="btn" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="1">Vincular una carpeta existente</button></div>' +
+          (conf ? '' : '<p class="hint">Pendiente de configuración: un administrador tiene que conectar el Drive de la ONG (Trazabilidad → Planilla de cultivo → Client ID de Google). Mientras tanto se puede vincular una carpeta a mano.</p>') : '');
+    }
+    return h + '</section>';
+  }
+  CM.acts['drive-crear'] = function (t) {
+    var p = CM.paciente(t.getAttribute('data-dni')); if (!p || !CM.need('pacientes', 'oper')) return;
+    if (!(CM.db.ong && CM.db.ong.driveClientId)) { CM.toast('Pendiente de configuración: falta conectar el Drive de la ONG (Client ID de Google).', true); return; }
+    if (p.drive1) { CM.toast('Este paciente ya tiene carpeta.', true); return; }
+    CM.toast('Creando la carpeta en Drive…');
+    CM.driveCarpetaPaciente(p).then(function (cf) {
+      p.drive1 = 'https://drive.google.com/drive/folders/' + cf.id;
+      CM.audit('Drive: carpeta de legajo creada', 'Legajo ' + CM.legDe(p.dni)); CM.save(); render(); CM.toast('Carpeta creada y vinculada al legajo.');
+    }).catch(function (e) { CM.toast((e && e.message) || 'No se pudo crear la carpeta en Drive.', true); });
+  };
   VIEWS.paciente = function (r) {
     var dni = CM.soloDigitos(r.a), p = CM.paciente(dni);
     if (!p) {
@@ -268,7 +286,7 @@
       '<button class="btn" data-act="seguimiento" data-dni="' + esc(dni) + '">' + CM.icon('clip') + 'Seguimiento médico</button>' +
       '<button class="btn" data-act="historia" data-dni="' + esc(dni) + '">' + CM.icon('doc') + (p.historiaCompleta ? 'Editar historia clínica' : 'Completar historia clínica') + '</button></div></section>';
 
-    var drives = '<div class="grid g2" style="margin-top:14px">' + driveCard(p, 1) + driveCard(p, 2) + '</div>';
+    var drives = carpetaLegajo(p);
 
     var datos = '<section class="card" style="margin-top:14px"><div class="row sp"><h2>Datos y historia clínica</h2><a class="btn sm" href="' + esc(CM.db.ong.urlHistoria) + '" target="_blank" rel="noopener noreferrer">Abrir formulario de Historia (Google Forms)</a></div><div class="kv">' +
       kv('Nombre y apellido', p.nombre) + kv('Fecha de nacimiento', p.nac ? CM.fmtFecha(p.nac) + (edad != null ? ' · ' + edad + ' años' : '') : '') + kv('Teléfono', p.tel ? p.tel : '') +
