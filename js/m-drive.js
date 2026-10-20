@@ -107,6 +107,8 @@
     });
   };
 
+  CM._drv = { api: api, asegurar: asegurar, carpeta: carpeta, listar: listar, conectado: conectado, API: API };
+
   /* ---------- pantalla ---------- */
   CM.driveHtml = function (c) {
     var drv = c.drive || { versiones: [] }, admin = CM.can('cultivo', 'admin'), oper = CM.can('cultivo', 'oper');

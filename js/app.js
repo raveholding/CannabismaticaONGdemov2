@@ -215,7 +215,7 @@
     var arr = Object.keys(CM.db.pacientes).map(function (k) { return CM.db.pacientes[k]; }).filter(function (p) {
       var dc = CM.docPac(p), okq = !q || CM.norm(p.nombre).indexOf(q) > -1 || (p.leg && p.leg.toLowerCase().indexOf(q) > -1) || (d && (p.dni.indexOf(d) > -1 || (dc && dc.num.indexOf(d) > -1)));
       var e = CM.estadoRep(p.reprocann);
-      var oke = !est || e.k === est || (est === 'prox' && e.prox) || (est === 'hist' && !p.historiaCompleta);
+      var oke = !est || e.k === est || (est === 'prox' && e.prox) || (est === 'hist' && !p.historiaCompleta) || (est === 'form' && CM.legajoForms && (CM.legajoForms(p).ing.k !== 'ok' || CM.legajoForms(p).hc.k === 'pend')) || (est === 'carp' && CM.legajoPend && !p.driveId && !p.drive1);
       return okq && oke;
     }).sort(function (a, b) { return a.nombre.localeCompare(b.nombre); });
     if (!arr.length) return '<tr><td colspan="6">' + tablaVacia('Sin pacientes con ese filtro.') + '</td></tr>';
@@ -227,8 +227,8 @@
   }
   VIEWS.pacientes = function () {
     return '<div class="page-h"><div><h1>Pacientes</h1><p>Identificados por DNI. Tocá una fila para abrir la ficha.</p></div><button class="btn pri" data-act="nuevo-paciente">' + CM.icon('plus') + 'Nuevo paciente (ingreso breve)</button></div>' +
-      '<div class="card"><div class="row" style="margin-bottom:12px"><label class="sr" for="fpq">Filtrar por DNI o nombre</label><input id="fpq" class="in" style="max-width:340px" placeholder="Filtrar por DNI o nombre" autocomplete="off">' +
-      '<label class="sr" for="fpe">Filtrar por estado</label><select id="fpe" class="in" style="max-width:260px"><option value="">Todos los estados</option><option value="valido">REPROCANN válido</option><option value="prox">Vence en 60 días o menos</option><option value="vencido">REPROCANN vencido</option><option value="tramite">En trámite</option><option value="sin">Sin REPROCANN</option><option value="hist">Historia clínica pendiente</option></select></div>' +
+      (CM.legajoBanner ? CM.legajoBanner() : '') + '<div class="card"><div class="row" style="margin-bottom:12px"><label class="sr" for="fpq">Filtrar por DNI o nombre</label><input id="fpq" class="in" style="max-width:340px" placeholder="Filtrar por DNI o nombre" autocomplete="off">' +
+      '<label class="sr" for="fpe">Filtrar por estado</label><select id="fpe" class="in" style="max-width:260px"><option value="">Todos los estados</option><option value="valido">REPROCANN válido</option><option value="prox">Vence en 60 días o menos</option><option value="vencido">REPROCANN vencido</option><option value="tramite">En trámite</option><option value="sin">Sin REPROCANN</option><option value="hist">Historia clínica pendiente</option><option value="form">Formularios sin completar</option><option value="carp">Sin carpeta en Drive</option></select></div>' +
       '<div class="tw"><table><thead><tr><th>Documento / legajo</th><th>Paciente</th><th>Teléfono</th><th>REPROCANN</th><th>Historia clínica</th><th>Última dispensación</th></tr></thead><tbody id="tbPac">' + filasPacientes('', '') + '</tbody></table></div></div>';
   };
 
@@ -258,10 +258,9 @@
   CM.acts['drive-crear'] = function (t) {
     var p = CM.paciente(t.getAttribute('data-dni')); if (!p || !CM.need('pacientes', 'oper')) return;
     if (!(CM.db.ong && CM.db.ong.driveClientId)) { CM.toast('Pendiente de configuración: falta conectar el Drive de la ONG (Client ID de Google).', true); return; }
-    if (p.drive1) { CM.toast('Este paciente ya tiene carpeta.', true); return; }
-    CM.toast('Creando la carpeta en Drive…');
-    CM.driveCarpetaPaciente(p).then(function (cf) {
-      p.drive1 = 'https://drive.google.com/drive/folders/' + cf.id;
+    if (p.drive1 && p.drive1 !== 'https://drive.google.com/drive/my-drive') { CM.toast('Este paciente ya tiene carpeta.', true); return; }
+    CM.toast('Creando la carpeta del legajo en Drive…');
+    (CM.legajoProvisionar ? CM.legajoProvisionar(p) : CM.driveCarpetaPaciente(p).then(function (cf) { p.drive1 = 'https://drive.google.com/drive/folders/' + cf.id; CM.save(); })).then(function () {
       CM.audit('Drive: carpeta de legajo creada', 'Legajo ' + CM.legDe(p.dni)); CM.save(); render(); CM.toast('Carpeta creada y vinculada al legajo.');
     }).catch(function (e) { CM.toast((e && e.message) || 'No se pudo crear la carpeta en Drive.', true); });
   };
@@ -286,7 +285,7 @@
       '<button class="btn" data-act="seguimiento" data-dni="' + esc(dni) + '">' + CM.icon('clip') + 'Seguimiento médico</button>' +
       '<button class="btn" data-act="historia" data-dni="' + esc(dni) + '">' + CM.icon('doc') + (p.historiaCompleta ? 'Editar historia clínica' : 'Completar historia clínica') + '</button></div></section>';
 
-    var drives = carpetaLegajo(p);
+    var drives = carpetaLegajo(p) + (CM.legajoFormsHtml ? CM.legajoFormsHtml(p) : '');
 
     var datos = '<section class="card" style="margin-top:14px"><div class="row sp"><h2>Datos y historia clínica</h2><a class="btn sm" href="' + esc(CM.db.ong.urlHistoria) + '" target="_blank" rel="noopener noreferrer">Abrir formulario de Historia (Google Forms)</a></div><div class="kv">' +
       kv('Nombre y apellido', p.nombre) + kv('Fecha de nacimiento', p.nac ? CM.fmtFecha(p.nac) + (edad != null ? ' · ' + edad + ' años' : '') : '') + kv('Teléfono', p.tel ? p.tel : '') +
