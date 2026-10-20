@@ -215,3 +215,7 @@ legend{padding:0 8px;color:var(--ac);font-weight:600;font-size:14px}
 
 /* nada se ve hasta que el arranque eligió menú público o panel (evita el parpadeo del panel) */
 html:not(.rdy) .app{visibility:hidden}
+
+/* Créditos del desarrollador: botones reales de al menos 48 px */
+.dev-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px}
+.dev-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;min-width:96px;padding:0 16px;border:1px solid currentColor;border-radius:10px;font-weight:600;text-decoration:none}

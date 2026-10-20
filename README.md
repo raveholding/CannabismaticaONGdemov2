@@ -45,7 +45,7 @@ Terminología de ONG en toda la interfaz: paciente/socio, dispensación, donaci�
 ## Fase 6 (novedades)
 - **Planilla de seguimiento de cultivo** (Trazabilidad → "Planilla de cultivo" y menú lateral "Cultivo"): N°, Fecha, Día, Semana, Fase, Riego (PH/EC), H %, Temp, R. Off (EC/PH), Observaciones y Encargado; corrección/anulación con motivo, ciclo cerrado de sólo lectura, impresión A4 y CSV.
 - **Google Drive opcional** (`js/m-drive.js`): la ONG carga su Client ID de Google; guarda cada ciclo como archivo nuevo con nombre único `<ciclo>_<lote>_<fecha>_v<n>`, sin pisar ni duplicar. Probado sólo con Google simulado; falta probar con cuenta real. La CSP ahora permite los dominios de Google necesarios.
-- **Menú público**: carga sin parpadeo del panel, encabezado opaco y créditos de Rave Holding visibles.
+- **Menú público**: carga sin parpadeo del panel, encabezado opaco y créditos de VINCULAR BUSINESS visibles.
 - **Empezar de cero**: botón en Ajustes que retira los datos de ejemplo conservando usuarios, ajustes y menú.
 - Prompt reutilizable para otras ONG: `docs/Sistema-VB-ONG.md` (v2).
 
@@ -88,7 +88,7 @@ js/qrcode.js      generador de QR (qrcode-generator, MIT)
 assets/           logo e íconos
 ```
 
-Desarrollado por **Rave Holding** · WhatsApp +54 9 387 514-3900 · raveholding@gmail.com
+Desarrollado por **VINCULAR BUSINESS** · WhatsApp (387) 4484132 · vincularbusiness@gmail.com
 
 ## Actualización (octubre 2026)
 - Esta demo sigue siendo local (sin nube, con usuarios y datos de ejemplo) y sirve para mostrar el sistema a otras organizaciones. La versión con nube real (ingreso con Supabase, sincronización, roles en servidor) es la de Fundación Cannabismatica: https://raveholding.github.io/Cannabismatica/
