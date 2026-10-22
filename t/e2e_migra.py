@@ -29,6 +29,7 @@ with sync_playwright() as pw:
     pg.fill('input[name=correo]', 'admin@example.com'); pg.fill('input[name=clave]', 'Demo2026!')
     pg.click('form[data-form=acceso] button[type=submit]'); pg.wait_for_timeout(800)
     ev = lambda js: pg.evaluate(js)
+    alertas0 = ev('CM.diasSinCaja().length')
     antes = ev('({p:Object.keys(CM.db.pacientes).length,d:CM.db.disp.length,a:CM.db.aportes.length,m:CM.db.movs.length,aud:CM.db.audit.length})')
 
     pg.goto(URL + '#/migracion'); pg.wait_for_timeout(400)
@@ -50,6 +51,12 @@ with sync_playwright() as pw:
     r = ev('CM.mg.plan.resumen')
     chk(ev('CM.mg.plan.ok') is True and r['dispensaciones'] == 11 and r['donaciones'] == 10 and r['donadoCent'] == 36399998, 'con reglas: listo y con los mismos números que en Node (11 / 10 / $ 363.999,98)')
     chk(not pg.locator('[data-act=mig-ok]').is_disabled(), 'botón «Migrar todo» habilitado')
+    # sin lugar en el navegador: se informa y no queda nada a medias
+    snap2 = ev('JSON.stringify(CM.db).length')
+    res2 = ev('''(()=>{const p=MIGRA.analizar(CM.mg.libro,{hoy:CM.hoy(),reglas:Object.fromEntries(Object.keys(MIGRA.REGLAS).map(k=>[k,true])),existente:{docs:{},legAnt:{},migIds:{},emails:{}},rnd:n=>crypto.getRandomValues(new Uint32Array(n))});
+       const o=Storage.prototype.setItem; Storage.prototype.setItem=function(){throw new DOMException('lleno','QuotaExceededError')};
+       try{return CM.migraAplicar(p,'lleno.xlsx')}finally{Storage.prototype.setItem=o}})()''')
+    chk(res2['ok'] is False and 'lugar' in res2['err'] and ev('JSON.stringify(CM.db).length') == snap2, 'sin lugar para guardar: avisa y no cambia nada')
     pg.click('[data-act=mig-ok]'); pg.wait_for_timeout(300)
     chk(pg.locator('#modalRoot .md', has_text='Reglas encendidas').count() == 1, 'confirmación muestra las reglas encendidas')
     pg.click('[data-act=mig-ok2]'); pg.wait_for_timeout(800)
@@ -69,6 +76,7 @@ with sync_playwright() as pw:
     chk('Migración del sistema anterior' in d['aud'] and 'cicloHistorico' in d['aud'], 'auditoría con las reglas usadas')
     chk(d['guardado'] == 1, 'quedó guardado en el navegador')
 
+    chk(ev('CM.diasSinCaja().length') == alertas0, 'las donaciones migradas no generan alertas de «días sin cierre»')
     # ficha del paciente: documentos y marca de revisión
     pg.goto(URL + '#/paciente/99100001'); pg.wait_for_timeout(400)
     chk(pg.locator('text=Documentos del sistema anterior').count() == 1, 'la ficha muestra los documentos del sistema anterior')
@@ -103,6 +111,12 @@ with sync_playwright() as pw:
        p.aportes[3].rubroId='R-NO-EXISTE'; return CM.migraAplicar(p,'falla.xlsx');})()''')
     chk(res['ok'] is False and ev('JSON.stringify(CM.db).length') == snap, 'una falla en medio revierte todo (rubro inexistente)')
 
+    # un sello del Club posterior sobre un legajo migrado también bloquea el deshacer
+    ev('''(CM.db.sellos=CM.db.sellos||[]).push({id:'SE-POST',dni:'99100001',cant:1})''')
+    pg.goto(URL + '#/migracion'); pg.wait_for_timeout(300)
+    pg.click('[data-act=mig-deshacer]'); pg.wait_for_timeout(200); pg.click('[data-act=mig-deshacer2]'); pg.wait_for_timeout(400)
+    chk(ev('CM.db.migra.lotes[0].deshecho') is False, 'no se deshace si hay un sello del Club posterior')
+    ev("CM.db.sellos=CM.db.sellos.filter(x=>x.id!=='SE-POST')")
     # deshacer: bloqueado si algo posterior depende; libre si no
     ev('''CM.db.disp.push({id:'D-POST',fecha:CM.hoy(),dni:'99100001',lote:'L-MIG-G0000002',cant:1,unidad:'g',anulada:null})''')
     pg.goto(URL + '#/migracion'); pg.wait_for_timeout(300)
@@ -125,6 +139,14 @@ with sync_playwright() as pw:
         pg.goto(URL + '#/' + v); pg.wait_for_timeout(120)
         if pg.locator('#main').inner_text().strip() == '': malas.append(v)
     chk(not malas, 'regresión: las %d pantallas abren (%s)' % (len(vistas), ','.join(malas)))
+    # zip bomba: un .xlsx que declara poco y se infla demasiado se rechaza sin colgar la pestaña
+    bomba = ev('''(async()=>{const z=new Uint8Array(60*1024*1024); const cs=new CompressionStream('deflate-raw'); const w=cs.writable.getWriter(); w.write(z); w.close(); const dat=new Uint8Array(await new Response(cs.readable).arrayBuffer());
+      const enc=new TextEncoder(), nom=enc.encode('xl/workbook.xml'), L=30+nom.length, buf=new Uint8Array(L+dat.length+46+nom.length+22), dv=new DataView(buf.buffer);
+      dv.setUint32(0,0x04034b50,true); dv.setUint16(8,8,true); dv.setUint32(18,dat.length,true); dv.setUint32(22,1,true); dv.setUint16(26,nom.length,true); buf.set(nom,30); buf.set(dat,L);
+      let c=L+dat.length; dv.setUint32(c,0x02014b50,true); dv.setUint16(c+10,8,true); dv.setUint32(c+20,dat.length,true); dv.setUint32(c+24,1,true); dv.setUint16(c+28,nom.length,true); dv.setUint32(c+42,0,true); buf.set(nom,c+46);
+      const e=c+46+nom.length; dv.setUint32(e,0x06054b50,true); dv.setUint16(e+8,1,true); dv.setUint16(e+10,1,true); dv.setUint32(e+12,46+nom.length,true); dv.setUint32(e+16,c,true);
+      try{await CM.leerXlsxLibro(buf.buffer); return 'leyó'}catch(err){return err.message}})()''')
+    chk('demasiado grande' in bomba, 'zip bomba rechazado midiendo lo descomprimido (%s)' % bomba[:60])
     pg.set_viewport_size({'width': 360, 'height': 800}); pg.goto(URL + '#/migracion'); pg.wait_for_timeout(300)
     pg.set_input_files('#migFile', XLSX); pg.wait_for_timeout(1200)
     chk(ev('document.documentElement.scrollWidth') <= 362, '360 px sin desborde horizontal')

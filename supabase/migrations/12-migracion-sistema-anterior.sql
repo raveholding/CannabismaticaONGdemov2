@@ -10,8 +10,11 @@
 --     sin escritura directa (sólo por funciones SECURITY DEFINER con search_path fijo).
 --   · Libros SÓLO-AGREGAR (movimientos, dispensaciones, detalle, donaciones, seguimientos, respuestas,
 --     arqueos, lotes): BEFORE UPDATE OR DELETE lo impide. Se corrige con movimientos compensatorios.
---   · migra_aplicar(comercio, plan): carga el PLAN que produce js/migra-core.js en UNA transacción.
+--   · migra_aplicar(comercio, plan, archivo, usuario): carga el PLAN que produce js/migra-core.js en UNA transacción.
 --     Si una sola fila falla, no queda nada. Reenviar el mismo plan no duplica (migra_ids).
+--     SÓLO la puede llamar la función de servidor migra-sheets (rol service_role), que arma el plan ella misma
+--     leyendo Google: un usuario no puede mandar un plan escrito a mano por la API.
+--   · migra_config: planilla, carpeta raíz de Drive y carpetas de AppSheet POR COMERCIO (nunca las elige el pedido).
 --
 -- Requisitos previos (se verifican al inicio; si faltan, el script se detiene sin tocar nada):
 --   · tabla comercios(id uuid)  · tabla miembros(comercio_id uuid, user_id uuid, rol text)
@@ -29,11 +32,11 @@ begin
   if to_regprocedure('auth.uid()') is null then raise exception 'Falta auth.uid(): este script es para Supabase.'; end if;
 end $$;
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto;  -- en Supabase vive en el esquema «extensions»: las funciones lo incluyen en su search_path
 
 -- ---------- adaptador de rol (único punto a ajustar si la base real usa otros nombres) ----------
 create or replace function public.migra_rol(p_comercio uuid) returns text
-language sql stable security definer set search_path = public, pg_temp as $$
+language sql stable security definer set search_path = public, extensions, pg_temp as $$
   select m.rol from public.miembros m where m.comercio_id = p_comercio and m.user_id = auth.uid() limit 1
 $$;
 revoke all on function public.migra_rol(uuid) from public;
@@ -77,6 +80,15 @@ create table if not exists public.rubros_financieros (
   primary key (comercio_id, id)
 );
 
+create table if not exists public.migra_config (
+  comercio_id uuid primary key references public.comercios(id),
+  sheet_id text check (sheet_id ~ '^[A-Za-z0-9_-]{20,100}$'),
+  drive_root_id text check (drive_root_id ~ '^[A-Za-z0-9_-]{10,100}$'),
+  appsheet_folders text[] not null default '{}',  -- carpetas Documentos_Files_ / Documentos_Images del sistema anterior
+  updated_at timestamptz not null default now(),
+  updated_by uuid
+);
+
 create table if not exists public.legajos (
   comercio_id uuid not null references public.comercios(id),
   id uuid not null default gen_random_uuid(),
@@ -102,6 +114,7 @@ create table if not exists public.legajos (
   unique (comercio_id, clave)
 );
 create unique index if not exists legajos_doc_unico on public.legajos (comercio_id, doc_hash) where doc_hash is not null and deleted_at is null;
+create unique index if not exists legajos_anterior_unico on public.legajos (comercio_id, legajo_anterior) where legajo_anterior is not null;
 
 create table if not exists public.geneticas (
   comercio_id uuid not null references public.comercios(id),
@@ -322,7 +335,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['rubros_financieros','legajos','geneticas','ciclos_cultivo','stock_movimientos','dispensaciones','dispensacion_detalles','donaciones','legajo_seguimientos','formularios_respuestas','legajo_documentos','arqueos_historicos','documentacion_institucional','recursos_utiles','migra_lotes','migra_ids'] loop
+  foreach t in array array['migra_config','rubros_financieros','legajos','geneticas','ciclos_cultivo','stock_movimientos','dispensaciones','dispensacion_detalles','donaciones','legajo_seguimientos','formularios_respuestas','legajo_documentos','arqueos_historicos','documentacion_institucional','recursos_utiles','migra_lotes','migra_ids'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke insert, update, delete, truncate on public.%I from anon, authenticated', t);
     execute format('revoke all on public.%I from anon', t);
@@ -332,17 +345,34 @@ begin
     end if;
   end loop;
 end $$;
--- los datos personales del legajo y los documentos clínicos: sólo admin y supervisor
-drop policy if exists legajos_leer_miembros on public.legajos;
-create policy legajos_leer_miembros on public.legajos for select to authenticated using (public.migra_rol(comercio_id) in ('admin','supervisor','mostrador','operador'));
-drop policy if exists legajo_documentos_leer_miembros on public.legajo_documentos;
-create policy legajo_documentos_leer_miembros on public.legajo_documentos for select to authenticated using (public.migra_rol(comercio_id) in ('admin','supervisor'));
+-- datos personales y de salud (legajo, seguimientos, respuestas, documentos clínicos) y configuración: sólo admin y supervisor.
+-- [Límite] el mostrador trabaja con la copia cifrada del sistema (6.11); estas tablas son el respaldo relacional de la migración.
+do $$
+declare t text;
+begin
+  foreach t in array array['legajos','legajo_seguimientos','formularios_respuestas','legajo_documentos','migra_config'] loop
+    execute format('drop policy if exists %I on public.%I', t || '_leer_miembros', t);
+    execute format('create policy %I on public.%I for select to authenticated using (public.migra_rol(comercio_id) in (''admin'',''supervisor''))', t || '_leer_miembros', t);
+  end loop;
+end $$;
+
+create or replace function public.migra_config_guardar(p_comercio uuid, p_sheet text, p_raiz text, p_carpetas text[])
+returns void language plpgsql security definer set search_path = public, extensions, pg_temp as $$
+begin
+  if public.migra_rol(p_comercio) is distinct from 'admin' then raise exception 'Sólo un administrador.' using errcode = '42501'; end if;
+  if exists (select 1 from unnest(coalesce(p_carpetas, '{}')) c where c !~ '^[A-Za-z0-9_-]{10,100}$') then raise exception 'Identificador de carpeta inválido.'; end if;
+  insert into public.migra_config (comercio_id, sheet_id, drive_root_id, appsheet_folders, updated_by) values (p_comercio, p_sheet, p_raiz, coalesce(p_carpetas, '{}'), auth.uid())
+  on conflict (comercio_id) do update set sheet_id = excluded.sheet_id, drive_root_id = excluded.drive_root_id, appsheet_folders = excluded.appsheet_folders, updated_at = now(), updated_by = auth.uid();
+end $$;
+revoke all on function public.migra_config_guardar(uuid, text, text, text[]) from public;
+grant execute on function public.migra_config_guardar(uuid, text, text, text[]) to authenticated;
 
 -- =====================================================================================
 -- migra_aplicar: carga atómica del PLAN (formato de js/migra-core.js · migra-1.0)
 -- =====================================================================================
-create or replace function public.migra_aplicar(p_comercio uuid, p_plan jsonb, p_archivo text default null)
-returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+drop function if exists public.migra_aplicar(uuid, jsonb, text);
+create or replace function public.migra_aplicar(p_comercio uuid, p_plan jsonb, p_archivo text, p_usuario uuid)
+returns jsonb language plpgsql security definer set search_path = public, extensions, pg_temp as $$
 declare
   v_lote text; v_n int; x jsonb; v_uuid uuid; v_disp uuid; v_k text;
   v_leg jsonb := '{}'::jsonb;       -- clave → uuid de legajo
@@ -350,9 +380,18 @@ declare
   c_pac int := 0; c_disp int := 0; c_det int := 0; c_don int := 0; c_mov int := 0; c_seg int := 0; c_doc int := 0; c_lot int := 0; c_omit int := 0;
   v_suma bigint := 0;
 begin
-  -- permisos
-  if public.migra_rol(p_comercio) is distinct from 'admin' then
+  -- permisos: el usuario en cuyo nombre migra la función de servidor tiene que ser administrador del comercio
+  if not exists (select 1 from public.miembros m where m.comercio_id = p_comercio and m.user_id = p_usuario and m.rol = 'admin') then
     raise exception 'Sólo un administrador del comercio puede migrar.' using errcode = '42501';
+  end if;
+  -- defensa en profundidad: aunque el plan lo arma el servidor, se revalida lo crítico
+  if exists (select 1 from jsonb_array_elements(coalesce(p_plan->'disp','[]')) d where (d->>'fecha')::date > current_date + 1 or (d->>'cant')::numeric <= 0)
+     or exists (select 1 from jsonb_array_elements(coalesce(p_plan->'aportes','[]')) d where (d->>'fecha')::date > current_date + 1 or (d->>'cent')::bigint <= 0)
+     or exists (select 1 from jsonb_array_elements(coalesce(p_plan->'movs','[]')) d where d->>'tipo' not in ('ingreso','ajuste'))
+     or exists (select 1 from jsonb_array_elements(coalesce(p_plan->'docs','[]')) d where d->>'ruta' !~ '^[A-Za-z0-9_][A-Za-z0-9_ ./-]*$' or length(d->>'ruta') > 300 or d->>'ruta' like '%..%')
+     or exists (select 1 from jsonb_array_elements(coalesce(p_plan->'disp','[]')) d where d->>'cu' is distinct from p_plan->'ciclo'->>'id'
+                and not exists (select 1 from public.ciclos_cultivo c where c.comercio_id = p_comercio and c.id = d->>'cu' and c.historico)) then
+    raise exception 'El plan no pasa la revalidación del servidor (fechas, cantidades, tipos, rutas o ciclo de origen).';
   end if;
   -- plan
   if p_plan is null or p_plan->>'version' is distinct from 'migra-1.0' then raise exception 'Plan de migración con versión desconocida.'; end if;
@@ -391,7 +430,9 @@ begin
     update public.legajos l set pii = (select jsonb_object_agg(k, v) from (
         select k, v from jsonb_each(l.pii) e(k, v)
         union all
-        select k, v from jsonb_each(x->'campos') c(k, v) where coalesce(v #>> '{}', '') <> '' and not (l.pii ? k and coalesce(l.pii->>k, '') <> '')) s)
+        select k, to_jsonb(left(v #>> '{}', 2000)) from jsonb_each(x->'campos') c(k, v)
+         where k in ('nac','tel','email','dir','cp','obraSocial','codSeg','ocupacion','dudas','motivo')
+           and coalesce(v #>> '{}', '') <> '' and not (l.pii ? k and coalesce(l.pii->>k, '') <> '')) s)
       where l.comercio_id = p_comercio and l.id = (v_leg->>(x->>'key'))::uuid;
     insert into public.migra_ids values (p_comercio, x->>'sid', v_lote);
   end loop;
@@ -476,17 +517,29 @@ begin
     insert into public.migra_ids values (p_comercio, x->>'id', v_lote); c_doc := c_doc + 1;
   end loop;
 
-  -- 10. institucional, recursos, arqueos
-  insert into public.documentacion_institucional (comercio_id, id, nombre, url, categoria, migra_lote)
-    select p_comercio, e->>'legacyId', e->>'nombre', nullif(e->>'url', ''), nullif(e->>'cat', ''), v_lote from jsonb_array_elements(coalesce(p_plan->'docInst', '[]')) e on conflict do nothing;
-  insert into public.recursos_utiles (comercio_id, id, nombre, url, migra_lote)
-    select p_comercio, e->>'legacyId', e->>'nombre', nullif(e->>'url', ''), v_lote from jsonb_array_elements(coalesce(p_plan->'recursos', '[]')) e on conflict do nothing;
-  insert into public.arqueos_historicos (comercio_id, id, fecha, total_ef_cent, total_banco_cent, recuento_ef_cent, recuento_banco_cent, obs, turno, usuario, migra_lote)
-    select p_comercio, e->>'id', (e->>'fecha')::date, (e->>'totalEf')::bigint, (e->>'totalBanco')::bigint, (e->>'recuentoEf')::bigint, (e->>'recuentoBanco')::bigint, e->>'obs', e->>'turno', e->>'user', v_lote
-    from jsonb_array_elements(coalesce(p_plan->'arqueos', '[]')) e on conflict do nothing;
+  -- 10. institucional, recursos, arqueos (también quedan marcados para no repetir)
+  for x in select * from jsonb_array_elements(coalesce(p_plan->'docInst', '[]')) loop
+    if exists (select 1 from public.migra_ids where comercio_id = p_comercio and id_anterior = x->>'id') then continue; end if;
+    insert into public.documentacion_institucional (comercio_id, id, nombre, url, categoria, migra_lote)
+      values (p_comercio, x->>'legacyId', left(x->>'nombre', 160), nullif(x->>'url', ''), nullif(x->>'cat', ''), v_lote) on conflict do nothing;
+    insert into public.migra_ids values (p_comercio, x->>'id', v_lote);
+  end loop;
+  for x in select * from jsonb_array_elements(coalesce(p_plan->'recursos', '[]')) loop
+    if exists (select 1 from public.migra_ids where comercio_id = p_comercio and id_anterior = x->>'id') then continue; end if;
+    insert into public.recursos_utiles (comercio_id, id, nombre, url, migra_lote)
+      values (p_comercio, x->>'legacyId', left(x->>'nombre', 160), nullif(x->>'url', ''), v_lote) on conflict do nothing;
+    insert into public.migra_ids values (p_comercio, x->>'id', v_lote);
+  end loop;
+  for x in select * from jsonb_array_elements(coalesce(p_plan->'arqueos', '[]')) loop
+    if exists (select 1 from public.migra_ids where comercio_id = p_comercio and id_anterior = x->>'id') then continue; end if;
+    insert into public.arqueos_historicos (comercio_id, id, fecha, total_ef_cent, total_banco_cent, recuento_ef_cent, recuento_banco_cent, obs, turno, usuario, migra_lote)
+      values (p_comercio, x->>'id', (x->>'fecha')::date, (x->>'totalEf')::bigint, (x->>'totalBanco')::bigint, (x->>'recuentoEf')::bigint, (x->>'recuentoBanco')::bigint, left(x->>'obs', 500), x->>'turno', x->>'user', v_lote) on conflict do nothing;
+    insert into public.migra_ids values (p_comercio, x->>'id', v_lote);
+  end loop;
 
   -- invariantes: si el plan era nuevo, lo cargado tiene que coincidir con lo anunciado
-  if c_pac + c_det + c_don + c_mov + c_seg + c_doc + c_lot = 0 then
+  -- si no se escribió nada, no hay lote; si se escribió algo (aunque sean sólo formularios), el lote queda registrado
+  if c_pac = 0 and not exists (select 1 from public.migra_ids where comercio_id = p_comercio and lote = v_lote) then
     return jsonb_build_object('ok', true, 'lote', null, 'mensaje', 'Nada nuevo: este plan ya estaba cargado.');
   end if;
   if c_don = jsonb_array_length(coalesce(p_plan->'aportes', '[]')) and v_suma <> (p_plan->'resumen'->>'donadoCent')::bigint then
@@ -501,23 +554,23 @@ begin
   return jsonb_build_object('ok', true, 'lote', v_lote, 'legajos', c_pac, 'dispensaciones', c_disp, 'renglones', c_det, 'donaciones', c_don, 'donado_cent', v_suma,
     'movimientos', c_mov, 'seguimientos', c_seg, 'documentos', c_doc, 'lotes', c_lot);
 end $$;
-revoke all on function public.migra_aplicar(uuid, jsonb, text) from public;
-grant execute on function public.migra_aplicar(uuid, jsonb, text) to authenticated;
+revoke all on function public.migra_aplicar(uuid, jsonb, text, uuid) from public, anon, authenticated;
+grant execute on function public.migra_aplicar(uuid, jsonb, text, uuid) to service_role;
 
 -- ---------- vínculo con Google Drive (lo llama la función de servidor drive-legajos) ----------
 create or replace function public.migra_vincular_carpeta(p_comercio uuid, p_legajo_id text, p_folder_id text)
-returns void language plpgsql security definer set search_path = public, pg_temp as $$
+returns void language plpgsql security definer set search_path = public, extensions, pg_temp as $$
 begin
-  if public.migra_rol(p_comercio) not in ('admin','supervisor') then raise exception 'Sin permiso.' using errcode = '42501'; end if;
+  if public.migra_rol(p_comercio) is distinct from 'admin' then raise exception 'Sin permiso.' using errcode = '42501'; end if;
   if p_folder_id !~ '^[A-Za-z0-9_-]{10,100}$' then raise exception 'Identificador de carpeta inválido.'; end if;
   update public.legajos set drive_folder_id = p_folder_id
    where comercio_id = p_comercio and legajo_id = p_legajo_id and (drive_folder_id is null or drive_folder_id = p_folder_id);
   if not found then raise exception 'Legajo inexistente o ya vinculado a otra carpeta.'; end if;
 end $$;
 create or replace function public.migra_vincular_documento(p_comercio uuid, p_doc uuid, p_file_id text, p_url text, p_md5 text, p_version bigint, p_estado text)
-returns void language plpgsql security definer set search_path = public, pg_temp as $$
+returns void language plpgsql security definer set search_path = public, extensions, pg_temp as $$
 begin
-  if public.migra_rol(p_comercio) not in ('admin','supervisor') then raise exception 'Sin permiso.' using errcode = '42501'; end if;
+  if public.migra_rol(p_comercio) is distinct from 'admin' then raise exception 'Sin permiso.' using errcode = '42501'; end if;
   if p_estado not in ('vinculado','no encontrado','error') then raise exception 'Estado inválido.'; end if;
   if p_estado = 'vinculado' and (p_file_id !~ '^[A-Za-z0-9_-]{10,100}$' or p_url !~ '^https://(drive|docs)\.google\.com/') then raise exception 'Archivo de Drive inválido.'; end if;
   update public.legajo_documentos set file_id = case when p_estado = 'vinculado' then p_file_id end, url = case when p_estado = 'vinculado' then p_url end,

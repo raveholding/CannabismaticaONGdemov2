@@ -180,4 +180,36 @@ t('el texto se recorta y no trae caracteres de control', () => {
   assert.ok(x.nombre.length <= 120 && !/\u0000/.test(x.nombre));
 });
 
+t('Efectivo/Transferencia en 0 explícito no inventa una donación', () => {
+  const d = clon(L); d.Entregas.push(['enzero', '01/10/2026', '99100001', '', 'EFECTIVO', 'x@example.org', '', '0', '0']);
+  d.EntregasDetalle.push(['dezero', 'enzero', 'g0000002', '1', '5000', '5000', '', '5000']);
+  const p = M.analizar(d, { hoy: HOY, reglas: TODAS });
+  assert.strictEqual(p.aportes.filter(a => a.entrega === 'enzero').length, 0);
+  assert.ok(p.avisos.some(a => a.id === 'enzero' && /no coincide/.test(a.causa)));
+});
+t('lo cobrado distinto del detalle bloquea si no se enciende «cobradoManda»', () => {
+  const d = clon(L); d.Entregas.push(['endif', '01/10/2026', '99100001', '', 'EFECTIVO', 'x@example.org', '', '9000']);
+  d.EntregasDetalle.push(['dedif', 'endif', 'g0000002', '1', '5000', '5000', '', '5000']);
+  const r = clon(TODAS); r.cobradoManda = false; r.separarARevision = false;
+  assert.ok(M.analizar(d, { hoy: HOY, reglas: r }).errores.some(e => e.id === 'endif' && /no coincide/.test(e.causa)));
+});
+t('claves sin choques: entrega «X:efectivo» y entrega «X» generan claves distintas', () => {
+  const d = clon(L);
+  d.Entregas.push(['eq', '01/10/2026', '99100001', '', 'EFECTIVO', 'x@example.org', '', '1000'], ['eq:efectivo', '01/10/2026', '99100001', '', 'EFECTIVO', 'x@example.org', '', '1000']);
+  d.EntregasDetalle.push(['dq1', 'eq', 'g0000002', '1', '1000', '1000', '', '1000'], ['dq2', 'eq:efectivo', 'g0000002', '1', '1000', '1000', '', '1000']);
+  const p = M.analizar(d, { hoy: HOY, reglas: TODAS }), ids = [].concat(p.aportes.map(a => a.id), p.entregas, p.disp.map(x => x.id));
+  assert.strictEqual(new Set(ids).size, ids.length);
+});
+t('dos genéticas cuyo código de lote chocaría se informan', () => {
+  const d = clon(L); d.Geneticas.push(['g-0000001', 'Otra', 'CBD', '', '', '', '', '', '']);
+  assert.ok(M.analizar(d, { hoy: HOY, reglas: TODAS }).errores.some(e => /choca/.test(e.causa)));
+});
+t('reordenar las filas del formulario no hace reimportar respuestas viejas', () => {
+  const p1 = conReglas(), ids = {}; p1.enriquecer.forEach(x => { ids[x.sid] = 1; }); p1.seg.forEach(x => { ids[x.id] = 1; });
+  const d = clon(L); const f = d['Respuestas de formulario 1']; f.splice(1, 0, f.pop());
+  const g = d['Respuestas de formulario 2']; g.splice(1, 0, g.pop());
+  const p2 = M.analizar(d, { hoy: HOY, reglas: TODAS, existente: { docs: {}, legAnt: {}, migIds: ids, emails: {} } });
+  assert.strictEqual(p2.enriquecer.length, 0); assert.strictEqual(p2.seg.filter(x => x.id.startsWith('F2:')).length, 0);
+});
+
 console.log('\n' + ok + ' pruebas correctas' + (process.exitCode ? ' · HAY FALLAS' : ''));

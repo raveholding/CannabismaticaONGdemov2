@@ -23,7 +23,8 @@
     serviciosSinStock: 'Tratar «consulta médica» y «horas» como donación de servicio, sin dispensación ni stock',
     crearLegajoFaltante: 'Crear un legajo «a revisar» para el documento de una entrega que no está en la hoja Legajo',
     separarARevision: 'Separar a «revisión» (sin cargar) las filas que no se pueden resolver y cargar el resto',
-    medioSinDato: 'Registrar la donación con medio «Otro (sin dato)» cuando la forma de pago está vacía o es MIXTO sin desglose'
+    medioSinDato: 'Registrar la donación con medio «Otro (sin dato)» cuando la forma de pago está vacía o es MIXTO sin desglose',
+    cobradoManda: 'Cuando lo cobrado (Efectivo / Transferencia) no coincide con la suma del detalle, registrar lo cobrado'
   };
 
   /* ---------- utilidades ---------- */
@@ -237,9 +238,11 @@
       return null;
     }
 
+    var vistos = {};
     /* ===== 2. FORMULARIO 1 (alta / historia clínica) → completa la ficha sin pisar nada ===== */
     L.form1.filas.forEach(function (f) {
-      var d = digitos(f.dni), ts = fecha(f.ts), sid = 'F1:' + f._fila + ':' + txt(f.ts);
+      var d = digitos(f.dni), ts = fecha(f.ts), sid = 'F1:' + txt(f.ts) + ':' + d;
+      if (vistos[sid]) { plan.omitidos.push({ hoja: 'Respuestas de formulario 1', id: sid, causa: 'respuesta repetida en la hoja' }); return; } vistos[sid] = 1;
       if (exMig[sid]) { plan.omitidos.push({ hoja: 'Respuestas de formulario 1', id: sid, causa: 'ya importada' }); return; }
       if (!d || d.length < 6 || d.length > 9) { A('form1', f._fila, '', 'Respuesta sin DNI válido: queda en revisión, no se asocia a ningún legajo.'); revision.push({ hoja: NOMBRE_HOJA.form1, fila: f._fila, id: sid, causa: 'sin DNI válido' }); return; }
       var key = pacDe(d);
@@ -257,7 +260,8 @@
 
     /* ===== 3. FORMULARIO 2 (seguimiento médico) → seguimientos ===== */
     L.form2.filas.forEach(function (f) {
-      var d = digitos(f.dni), ts = fecha(f.ts), sid = 'F2:' + f._fila + ':' + txt(f.ts);
+      var d = digitos(f.dni), ts = fecha(f.ts), sid = 'F2:' + txt(f.ts) + ':' + d;
+      if (vistos[sid]) { plan.omitidos.push({ hoja: 'Respuestas de formulario 2', id: sid, causa: 'respuesta repetida en la hoja' }); return; } vistos[sid] = 1;
       if (exMig[sid]) { plan.omitidos.push({ hoja: 'Respuestas de formulario 2', id: sid, causa: 'ya importada' }); return; }
       var key = d ? pacDe(d) : null;
       if (!key) { A('form2', f._fila, d, 'Seguimiento de un documento que no tiene legajo: queda en revisión.'); revision.push({ hoja: NOMBRE_HOJA.form2, fila: f._fila, id: sid, causa: 'documento sin legajo' }); return; }
@@ -289,12 +293,14 @@
     });
 
     /* ===== 6. GENÉTICAS → lotes de stock ===== */
-    var gens = {};
+    var gens = {}, lotesUsados = {};
     L.geneticas.filas.forEach(function (f) {
       var id = txt(f.id, 40), nom = txt(f.nombre, 120);
       if (!id || !nom) { E('geneticas', f._fila, id, 'Genética sin ID o sin nombre.'); return; }
       if (gens[id]) { E('geneticas', f._fila, id, 'ID_Genetica repetido.'); return; }
-      var c = clasificar(nom), loteId = 'L-MIG-' + id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+      var c = clasificar(nom), loteId = 'L-MIG-' + id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 24);
+      if (lotesUsados[loteId]) { E('geneticas', f._fila, id, 'El ID choca con «' + lotesUsados[loteId] + '» al armar el código de lote: renombrá uno de los dos.'); return; }
+      lotesUsados[loteId] = id;
       gens[id] = { id: id, nombre: nom, prod: c.prod, unidad: c.unidad, lote: loteId, stockHoja: cant(f.stock) };
       if (c.prod === 'servicio') { A('geneticas', f._fila, id, '«' + nom + '» no es un producto (servicio): ' + (R.serviciosSinStock ? 'sus renglones se cargan como donación de servicio, sin stock.' : 'no se crea lote; sus renglones necesitan la regla «servicios sin stock».')); return; }
       if (exMig['LOT:' + id]) { plan.omitidos.push({ hoja: 'Geneticas', id: id, causa: 'lote ya importado' }); return; }
@@ -337,7 +343,7 @@
       if (!id) { E('entregas', fila, '', 'Entrega sin EntregaID.'); return; }
       if (entIds[id]) { E('entregas', fila, id, 'EntregaID repetido.'); return; }
       entIds[id] = 1;
-      if (exMig['ENT:' + id]) { plan.omitidos.push({ hoja: 'Entregas', id: id, causa: 'ya importada' }); return; }
+      if (exMig['ENTX:' + id]) { plan.omitidos.push({ hoja: 'Entregas', id: id, causa: 'ya importada' }); return; }
       var ts = fecha(f.fecha);
       if (!ts || malo(ts)) { P('entregas', fila, id, 'Fecha ilegible «' + txt(f.fecha) + '».'); return; }
       if (ts.fecha > hoy) { P('entregas', fila, id, 'Fecha futura.'); return; }
@@ -382,9 +388,13 @@
       /* importes: lo cobrado según las columnas Efectivo / Transferencia; si están vacías, la suma del detalle */
       var ef = cent(f.ef), tr = cent(f.tr), forma = norm(f.forma), aps = [];
       if ((ef !== null && isNaN(ef)) || (tr !== null && isNaN(tr)) || ef < 0 || tr < 0) { P('entregas', fila, id, 'Importe de efectivo o transferencia ilegible o negativo.'); return; }
-      var hayCols = (ef || 0) + (tr || 0) > 0;
+      var hayCols = ef !== null || tr !== null, cobrado = (ef || 0) + (tr || 0);
       if (hayCols) {
-        if (Math.abs((ef || 0) + (tr || 0) - sumaCent) > 1) A('entregas', fila, id, 'Lo cobrado (' + ((ef || 0) + (tr || 0)) / 100 + ') no coincide con la suma del detalle (' + sumaCent / 100 + '): se registra lo cobrado.');
+        if (Math.abs(cobrado - Math.max(0, sumaCent)) > 1) {
+          var dif = 'Lo cobrado (' + cobrado / 100 + ') no coincide con la suma del detalle (' + sumaCent / 100 + ')';
+          if (!R.cobradoManda) { P('entregas', fila, id, dif + '.'); return; }
+          A('entregas', fila, id, dif + ': se registra lo cobrado.');
+        }
         if (ef > 0) aps.push({ medio: 'efectivo', cent: ef });
         if (tr > 0) aps.push({ medio: 'transferencia', cent: tr });
       } else if (sumaCent > 0) {
@@ -398,11 +408,11 @@
       } else if (sumaCent < 0) { P('entregas', fila, id, 'La entrega suma un importe negativo.'); return; }
       dispNuevas.forEach(function (x) { plan.disp.push(x); });
       aps.forEach(function (a, i) {
-        plan.aportes.push({ id: 'ENT:' + id + ':' + a.medio, entrega: id, fecha: ts.fecha, ts: ts.ts, key: key, cent: a.cent, medio: a.medio, servicio: sumaServ > 0 && i === 0 ? sumaServ : 0,
+        plan.aportes.push({ id: 'DON:' + id + '|' + a.medio, entrega: id, fecha: ts.fecha, ts: ts.ts, key: key, cent: a.cent, medio: a.medio, servicio: sumaServ > 0 && i === 0 ? sumaServ : 0,
           concepto: 'Donación voluntaria', rubroId: 'R-01', obs: 'Migración del sistema anterior · entrega ' + id + (txt(f.turno) ? ' · turno ' + txt(f.turno, 20) : ''), user: txt(f.user, 120) || 'Migración', mig: 1 });
       });
       if (!aps.length && !dispNuevas.length) plan.omitidos.push({ hoja: 'Entregas', id: id, causa: 'entrega sin productos ni importe' });
-      if (aps.length || dispNuevas.length) plan.entregas.push('ENT:' + id); // marca de idempotencia
+      if (aps.length || dispNuevas.length) plan.entregas.push('ENTX:' + id); // marca de idempotencia
     });
     /* renglones de detalle cuya entrega no existe */
     Object.keys(dets).forEach(function (eid) { if (!entIds[eid]) dets[eid].forEach(function (l) { P('detalle', l._fila, txt(l.id), 'La entrega «' + eid + '» no existe en la hoja Entregas.'); }); });

@@ -42,6 +42,13 @@
     return movs.filter(function (m) { return !(m.derivado && mig[m.ref]); });
   };
 
+  /* …ni generan alertas de «días con donaciones sin cierre» */
+  var dsc0 = CM.diasSinCaja;
+  CM.diasSinCaja = function () {
+    var ap = CM.db.aportes; CM.db.aportes = ap.filter(function (a) { return !a.mig; });
+    try { return dsc0(); } finally { CM.db.aportes = ap; }
+  };
+
   /* ---------- lector .xlsx de libro completo (todas las pestañas, con su nombre) ---------- */
   function leerZip(buf) {
     var u = new Uint8Array(buf), dv = new DataView(buf), eocd = -1, i;
@@ -53,15 +60,25 @@
       var met = dv.getUint16(off + 10, true), csz = dv.getUint32(off + 20, true), usz = dv.getUint32(off + 24, true), nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true), lo = dv.getUint32(off + 42, true);
       ent[td.decode(u.subarray(off + 46, off + 46 + nl))] = { met: met, csz: csz, usz: usz, lo: lo }; off += 46 + nl + el + cl;
     }
-    var total = 0; Object.keys(ent).forEach(function (k) { total += ent[k].usz; });
+    var usados = { n: 0 }, total = 0; Object.keys(ent).forEach(function (k) { total += ent[k].usz; });
     if (total > 80 * 1024 * 1024) throw new Error('El archivo descomprimido supera 80 MB.');
     return function leer(nombre) {
       var x = ent[nombre]; if (!x) return Promise.resolve(null);
       var ln = dv.getUint16(x.lo + 26, true), le = dv.getUint16(x.lo + 28, true), ini = x.lo + 30 + ln + le, dat = u.subarray(ini, ini + x.csz);
       if (x.met === 0) return Promise.resolve(td.decode(dat));
       if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('Este navegador no puede descomprimir .xlsx; usá Chrome, Edge o Firefox actualizados.'));
-      var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(dat); w.close();
-      return new Response(ds.readable).arrayBuffer().then(function (b) { return td.decode(b); });
+      var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter();
+      w.write(dat).catch(function () { }); w.close().catch(function () { });
+      var rd = ds.readable.getReader(), partes = [], n = 0;
+      function paso() {
+        return rd.read().then(function (r) {
+          if (r.done) { var out = new Uint8Array(n), o = 0; partes.forEach(function (p) { out.set(p, o); o += p.length; }); return td.decode(out); }
+          n += r.value.length; usados.n += r.value.length;
+          if (n > 40 * 1024 * 1024 || usados.n > 120 * 1024 * 1024) { rd.cancel().catch(function () { }); throw new Error('El archivo descomprimido es demasiado grande.'); }
+          partes.push(r.value); return paso();
+        });
+      }
+      return paso();
     };
   }
   function xml(t) { return new DOMParser().parseFromString(t, 'application/xml'); }
@@ -131,7 +148,7 @@
     var db = asegurar(JSON.parse(JSON.stringify(CM.db))), prevDb = CM.db;
     var lote = { id: 'MIG-' + String((db.migra.lotes.length + 1)).padStart(4, '0'), ts: new Date().toISOString(), user: CM.db.cfg.operador, archivo: archivo, version: plan.version,
       reglas: Object.keys(plan.reglas).filter(function (k) { return plan.reglas[k]; }), resumen: plan.resumen,
-      creados: { pacientes: [], lotes: [], movs: [], disp: [], aportes: [], seg: [], docs: [], users: [], docInst: [], recursos: [], arqueos: [], cultivos: [] }, prevPac: {}, ids: [], conflictos: [], deshecho: false };
+      creados: { pacientes: [], lotes: [], movs: [], disp: [], aportes: [], seg: [], docs: [], users: [], docInst: [], recursos: [], arqueos: [], cultivos: [] }, campos: {}, ids: [], conflictos: [], deshecho: false };
     CM.db = db; // nextId usa CM.db: trabajamos sobre la copia
     try {
       function marca(id) { if (db.migra.ids[id]) throw new Error('Identificador repetido: ' + id); db.migra.ids[id] = lote.id; lote.ids.push(id); }
@@ -144,13 +161,12 @@
       });
       plan.enriquecer.forEach(function (e) {
         var p = db.pacientes[e.key]; if (!p) throw new Error('Paciente inexistente ' + e.key);
-        if (p.mig !== lote.id && !lote.prevPac[e.key]) lote.prevPac[e.key] = JSON.parse(JSON.stringify(p));
         Object.keys(e.campos).forEach(function (c) {
           var v = e.campos[c]; if (!v) return;
-          if (!p[c]) p[c] = v;
+          if (!p[c]) { p[c] = v; if (p.mig !== lote.id) (lote.campos[e.key] = lote.campos[e.key] || {})[c] = v; }
           else if (String(p[c]) !== String(v)) lote.conflictos.push({ legajo: p.leg, campo: c, seConserva: 'el valor que ya tenía la ficha' });
         });
-        if (!p.revisar && p.nombre) p.historiaCompleta = true;
+        if (!p.revisar && p.nombre && !p.historiaCompleta) { p.historiaCompleta = true; if (p.mig !== lote.id) (lote.campos[e.key] = lote.campos[e.key] || {}).historiaCompleta = true; }
         marca(e.sid);
       });
       if (plan.ciclo && !CM.cultivo(plan.ciclo.id)) {
@@ -215,10 +231,15 @@
       if (suma !== plan.resumen.donadoCent) throw new Error('El importe donado no cierra');
       db.migra.lotes.push(lote);
       CM.audit('Migración del sistema anterior', lote.id + ' · ' + archivo + ' · ' + plan.resumen.pacientes + ' legajos nuevos · ' + plan.resumen.dispensaciones + ' dispensaciones · ' + plan.resumen.donaciones + ' donaciones (' + money(plan.resumen.donadoCent) + ') · reglas: ' + (lote.reglas.length ? lote.reglas.join(', ') : 'ninguna (modo estricto)'));
+      /* guardar y comprobar que quedó escrito (el navegador puede no tener lugar) */
+      var txtDb = JSON.stringify(db);
+      try { g.localStorage.setItem('cmv2_db_v2', txtDb); if ((g.localStorage.getItem('cmv2_db_v2') || '').length !== txtDb.length) throw new Error('x'); }
+      catch (e) { throw new Error('El navegador no tiene lugar para guardar estos datos (' + Math.round(txtDb.length / 1048576) + ' MB). No se guardó nada: usá la migración desde la nube'); }
       CM.save();
       return { ok: true, lote: lote };
     } catch (err) {
       CM.db = prevDb; // nada cambió
+      try { CM.save(); } catch (e2) { /* nada */ }
       return { ok: false, err: err.message || String(err) };
     }
   }
@@ -228,23 +249,27 @@
   function bloqueosDeshacer(l) {
     var db = CM.db, pac = {}, lot = {}, out = [];
     l.creados.pacientes.forEach(function (k) { pac[k] = 1; }); l.creados.lotes.forEach(function (k) { lot[k] = 1; });
-    db.disp.forEach(function (d) { if (d.mig !== l.id && (pac[d.dni] || lot[d.lote])) out.push('la dispensación ' + d.id + ' es posterior y usa datos migrados'); });
-    db.aportes.forEach(function (a) { if (a.mig !== l.id && pac[a.dni]) out.push('la donación ' + a.id + ' es posterior y usa un legajo migrado'); });
-    db.movs.forEach(function (m) { if (m.mig !== l.id && lot[m.lote]) out.push('el movimiento ' + m.id + ' es posterior y usa un lote migrado'); });
-    (db.seg || []).forEach(function (s) { if (s.mig !== l.id && pac[s.dni]) out.push('el seguimiento ' + s.id + ' es posterior'); });
-    (db.cajas || []).forEach(function (c) { if (c.cierre && c.cierre.movs.some(function (m) { return l.creados.aportes.indexOf(m.ref) >= 0; })) out.push('una caja cerrada incluye donaciones migradas'); });
+    (function mirar(o, ruta, prof) { // cualquier registro posterior que apunte a un legajo o lote migrado bloquea
+      if (!o || typeof o !== 'object' || prof > 4) return;
+      if (Array.isArray(o)) { o.forEach(function (x, i) { if (x && typeof x === 'object' && !Array.isArray(x) && x.mig !== l.id && ((x.dni && pac[x.dni]) || (x.lote && lot[x.lote]) || (x.ins && lot[x.ins]))) out.push(ruta + ' ' + (x.id || ('#' + i))); else mirar(x, ruta, prof + 1); }); return; }
+      Object.keys(o).forEach(function (k) { if (['pacientes', 'migra', 'audit', 'staff', 'users', 'fichadas', 'perms', 'imports', 'org', 'tareas'].indexOf(k) < 0) /* el personal también tiene «dni», pero no es un paciente */ mirar(o[k], ruta ? ruta + '.' + k : k, prof + 1); });
+    })(db, '', 0);
+    (db.cajas || []).forEach(function (c) { if (c.cierre && c.cierre.movs.some(function (m) { return l.creados.aportes.indexOf(m.ref) >= 0; })) out.push('la caja cerrada ' + c.id); });
     return out;
   }
   function deshacer(l) {
     var db = CM.db, b = bloqueosDeshacer(l);
-    if (b.length) return { ok: false, err: 'No se puede deshacer: ' + b[0] + (b.length > 1 ? ' (y ' + (b.length - 1) + ' más)' : '') + '.' };
+    if (b.length) return { ok: false, err: 'No se puede deshacer: hay registros posteriores que usan datos migrados (' + b[0] + ')' + (b.length > 1 ? ' (y ' + (b.length - 1) + ' más)' : '') + '.' };
     var copia = JSON.parse(JSON.stringify(db));
     try {
       function fuera(arr) { return (arr || []).filter(function (x) { return x.mig !== l.id; }); }
       db.disp = fuera(db.disp); db.aportes = fuera(db.aportes); db.movs = fuera(db.movs); db.lotes = fuera(db.lotes); db.seg = fuera(db.seg);
       db.legDocs = fuera(db.legDocs); db.docInst = fuera(db.docInst); db.recursos = fuera(db.recursos); db.arqueosHist = fuera(db.arqueosHist); db.users = fuera(db.users); db.cultivos = fuera(db.cultivos);
       l.creados.pacientes.forEach(function (k) { delete db.pacientes[k]; });
-      Object.keys(l.prevPac).forEach(function (k) { db.pacientes[k] = l.prevPac[k]; });
+      Object.keys(l.campos || {}).forEach(function (k) { // sólo se quita lo que puso la migración y nadie cambió después
+        var p = db.pacientes[k]; if (!p) return;
+        Object.keys(l.campos[k]).forEach(function (c) { if (p[c] === l.campos[k][c]) { if (c === 'historiaCompleta') p[c] = false; else p[c] = ''; } });
+      });
       l.ids.forEach(function (id) { if (db.migra.ids[id] === l.id) delete db.migra.ids[id]; });
       l.deshecho = true; l.deshechoTs = new Date().toISOString();
       CM.audit('Migración deshecha', l.id + ' · ' + l.archivo); CM.save();

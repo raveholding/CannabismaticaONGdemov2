@@ -77,16 +77,23 @@ async function g(f: Fetch, token: string, url: string, init: Record<string, any>
 }
 
 /* ================= SHEETS: libro completo ================= */
-/** Lee todas las pestañas como texto formateado (igual a como se ve en la planilla y a como exporta el .xlsx). */
+/** Celda cruda → el mismo texto que produce el lector .xlsx del navegador: números con coma decimal (sin separador de miles)
+ *  y fechas como número de serie. Así el plan es idéntico venga del .xlsx o de la API, sin depender del idioma de la planilla. */
+export function celda(c: unknown): string {
+  if (c == null) return '';
+  if (typeof c === 'number') return isFinite(c) ? String(Math.round(c * 1e6) / 1e6).replace('.', ',') : '';
+  return String(c);
+}
+/** Lee todas las pestañas con valores SIN formato (números crudos, fechas como número de serie). */
 export async function leerLibro(f: Fetch, token: string, spreadsheetId: string): Promise<Record<string, string[][]>> {
   if (!/^[A-Za-z0-9_-]{20,100}$/.test(spreadsheetId)) throw new ErrorGoogle('config', 0, 'Identificador de planilla inválido.');
   const meta = await g(f, token, `${SHEETS}/${spreadsheetId}?fields=sheets.properties.title`, {}, 'sheets');
   const titulos: string[] = (meta.sheets || []).map((s: any) => s.properties.title).slice(0, 60);
   if (!titulos.length) return {};
   const qs = titulos.map((t) => 'ranges=' + encodeURIComponent("'" + t.replace(/'/g, "''") + "'")).join('&');
-  const v = await g(f, token, `${SHEETS}/${spreadsheetId}/values:batchGet?${qs}&valueRenderOption=FORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS`, {}, 'sheets');
+  const v = await g(f, token, `${SHEETS}/${spreadsheetId}/values:batchGet?${qs}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&majorDimension=ROWS`, {}, 'sheets');
   const libro: Record<string, string[][]> = {};
-  (v.valueRanges || []).forEach((vr: any, i: number) => { libro[titulos[i]] = (vr.values || []).map((row: any[]) => row.map((c) => (c == null ? '' : String(c)))); });
+  (v.valueRanges || []).forEach((vr: any, i: number) => { libro[titulos[i]] = (vr.values || []).map((row: any[]) => row.map(celda)); });
   return libro;
 }
 
@@ -122,10 +129,13 @@ export async function carpetaPaciente(f: Fetch, token: string, legajosId: string
   return { id: c.id, creada: true, url: c.webViewLink || '' };
 }
 
-/** Busca el archivo del sistema anterior por su ID (AppSheet lo nombra «<ID>.Archivo_PDF.<hora>.<ext>»). */
-export async function archivoAnterior(f: Fetch, token: string, idAnterior: string): Promise<any | null> {
+/** Busca el archivo del sistema anterior por su ID (AppSheet lo nombra «<ID>.Archivo_PDF.<hora>.<ext>»),
+ *  SÓLO dentro de las carpetas de AppSheet configuradas para este comercio (nunca en todo lo que ve la cuenta de servicio). */
+export async function archivoAnterior(f: Fetch, token: string, idAnterior: string, carpetas: string[]): Promise<any | null> {
   if (!/^[A-Za-z0-9]{4,40}$/.test(idAnterior)) throw new ErrorGoogle('datos', 0, 'ID de documento inválido.');
-  const fs = (await buscar(f, token, `name contains ${q(idAnterior + '.')} and mimeType != ${q(MIME_CARPETA)} and mimeType != ${q(MIME_ACCESO)} and trashed = false`))
+  if (!carpetas.length || carpetas.some((c) => !/^[A-Za-z0-9_-]{10,100}$/.test(c))) throw new ErrorGoogle('config', 0, 'Pendiente de configuración: faltan las carpetas de documentos de AppSheet de este comercio.');
+  const dentro = '(' + carpetas.slice(0, 20).map((c) => `${q(c)} in parents`).join(' or ') + ')';
+  const fs = (await buscar(f, token, `${dentro} and name contains ${q(idAnterior + '.')} and mimeType != ${q(MIME_CARPETA)} and mimeType != ${q(MIME_ACCESO)} and trashed = false`))
     .filter((x) => String(x.name).indexOf(idAnterior + '.') === 0);
   if (fs.length > 1) throw new ErrorGoogle('drive', 409, 'Hay ' + fs.length + ' archivos con el ID ' + idAnterior + ': revisalo a mano.');
   return fs[0] || null;
@@ -133,8 +143,8 @@ export async function archivoAnterior(f: Fetch, token: string, idAnterior: strin
 
 /** Vincula el archivo original al legajo SIN moverlo ni copiarlo (no rompe AppSheet): crea un acceso directo en la carpeta del paciente.
  *  Idempotente: un acceso por documento (propiedad vbongDoc). Devuelve los metadatos que se guardan en legajo_documentos. */
-export async function vincularDocumento(f: Fetch, token: string, carpetaId: string, idAnterior: string, nombre: string): Promise<{ estado: 'vinculado' | 'no encontrado'; fileId?: string; url?: string; md5?: string | null; version?: number | null }> {
-  const orig = await archivoAnterior(f, token, idAnterior);
+export async function vincularDocumento(f: Fetch, token: string, carpetaId: string, idAnterior: string, nombre: string, carpetasAppSheet: string[]): Promise<{ estado: 'vinculado' | 'no encontrado'; fileId?: string; url?: string; md5?: string | null; version?: number | null }> {
+  const orig = await archivoAnterior(f, token, idAnterior, carpetasAppSheet);
   if (!orig) return { estado: 'no encontrado' };
   const ya = await buscar(f, token, `${q(carpetaId)} in parents and mimeType = ${q(MIME_ACCESO)} and appProperties has { key='vbongDoc' and value=${q(idAnterior)} } and trashed = false`);
   if (!ya.length) {

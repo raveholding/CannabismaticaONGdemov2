@@ -3,6 +3,7 @@
 \set ON_ERROR_STOP 1
 create or replace function pg_temp.ok(c boolean, n text) returns void language plpgsql as $$ begin if not c then raise exception 'FALLA: %', n; end if; raise notice 'ok  %', n; end $$;
 create or replace function pg_temp.como(u text) returns void language plpgsql as $$ begin perform set_config('request.jwt.claim.sub', u, false); execute 'set role authenticated'; end $$;
+create or replace function pg_temp.srv() returns void language plpgsql as $$ begin perform set_config('request.jwt.claim.sub', '', false); execute 'set role service_role'; end $$;
 create or replace function pg_temp.falla(sql text, patron text) returns boolean language plpgsql as $$ begin execute sql; return false; exception when others then return sqlerrm ~* patron; end $$;
 \set A '\'aaaaaaaa-0000-0000-0000-00000000000a\''
 \set B '\'bbbbbbbb-0000-0000-0000-00000000000b\''
@@ -10,22 +11,23 @@ create or replace function pg_temp.falla(sql text, patron text) returns boolean 
 \set mostA '\'22222222-2222-2222-2222-222222222222\''
 \set adminB '\'33333333-3333-3333-3333-333333333333\''
 
--- 1. permisos: mostrador y admin de otro comercio no pueden migrar
-select pg_temp.como(:mostA);
-select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb)', :A, :'plan'), 'administrador'), 'un mostrador no puede migrar');
-reset role; select pg_temp.como(:adminB);
-select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb)', :A, :'plan'), 'administrador'), 'el admin de B no puede migrar en A');
-reset role;
-
--- 2. todo o nada: un plan con error, con rubro inválido o sin ciclo no deja nada
+-- 1. permisos: un usuario NO puede llamar migra_aplicar por la API (sólo la función de servidor, service_role)
 select pg_temp.como(:adminA);
-select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb)', :A, :'plan_error'), 'errores'), 'un plan marcado con errores se rechaza');
-select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb)', :A, :'plan_malo'), 'rubro financiero'), 'rubro inexistente: se rechaza');
-select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb)', :A, :'plan_sinciclo'), 'ciclo'), 'renglón sin ciclo: se rechaza');
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan', :adminA), 'permission denied'), 'ni el admin puede llamar migra_aplicar directo (plan escrito a mano)');
+reset role; select pg_temp.srv();
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan', :mostA), 'administrador'), 'en nombre de un mostrador: rechazado');
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan', :adminB), 'administrador'), 'en nombre del admin de B, sobre A: rechazado');
+
+-- 2. todo o nada: un plan con error, con rubro inválido, sin ciclo o con ciclo real (no histórico) no deja nada
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan_error', :adminA), 'errores'), 'un plan marcado con errores se rechaza');
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan_malo', :adminA), 'rubro financiero'), 'rubro inexistente: se rechaza');
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan_sinciclo', :adminA), 'ciclo'), 'renglón sin ciclo: se rechaza');
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan_cicloreal', :adminA), 'revalidación'), 'renglón apuntando a un ciclo real activo: se rechaza');
+select pg_temp.ok(pg_temp.falla(format('select public.migra_aplicar(%L, %L::jsonb, null, %L)', :A, :'plan_movmalo', :adminA), 'revalidación'), 'movimiento «dispensacion» positivo colado en movs: se rechaza');
 select pg_temp.ok((select count(*) from public.legajos) = 0 and (select count(*) from public.donaciones) = 0 and (select count(*) from public.migra_ids) = 0, 'después de los rechazos no quedó nada (rollback total)');
 
 -- 3. carga real
-select public.migra_aplicar(:A, :'plan'::jsonb, 'libro_sintetico.xlsx') as r \gset
+select public.migra_aplicar(:A, :'plan'::jsonb, 'libro_sintetico.xlsx', :adminA) as r \gset
 select pg_temp.ok((:'r'::jsonb->>'lote') = 'MIG-0001', 'lote MIG-0001 creado');
 select pg_temp.ok((select count(*) from public.legajos where comercio_id = :A) = 8, '8 legajos');
 select pg_temp.ok((select count(*) from public.dispensacion_detalles) = 11, '11 renglones de dispensación');
@@ -39,9 +41,13 @@ select pg_temp.ok((select legajo_id from public.legajos where clave = '99100001'
 select pg_temp.ok((select count(*) from public.legajos where revisar) = 5, '5 legajos para revisar');
 
 -- 4. idempotencia: reenviar el mismo plan no duplica
-select public.migra_aplicar(:A, :'plan'::jsonb) as r2 \gset
+select public.migra_aplicar(:A, :'plan'::jsonb, null, :adminA) as r2 \gset
 select pg_temp.ok((:'r2'::jsonb->>'lote') is null and (select count(*) from public.donaciones) = 10 and (select count(*) from public.dispensacion_detalles) = 11 and (select count(*) from public.legajos) = 8, 'reenviar el mismo plan no duplica');
 
+select pg_temp.ok((select count(*) from public.migra_lotes) = 1, 'reenviar no crea un lote vacío');
+select public.migra_aplicar(:A, :'plan_form'::jsonb, null, :adminA) as r3 \gset
+select pg_temp.ok((:'r3'::jsonb->>'lote') = 'MIG-0002' and (select count(*) from public.migra_lotes) = 2 and (select count(*) from public.migra_ids where lote = 'MIG-0002') = 1, 'un plan con sólo un formulario nuevo queda como su propio lote MIG-0002');
+reset role;
 -- 5. sólo-agregar e inmutabilidad (también para el dueño de la función)
 reset role;
 select pg_temp.ok(pg_temp.falla('update public.donaciones set importe_cent = 1', 'sólo-agregar'), 'donaciones: UPDATE rechazado');
@@ -57,10 +63,10 @@ select pg_temp.ok((select count(*) from public.legajos) = 8, 'admin de A ve sus 
 reset role; select pg_temp.como(:adminB);
 select pg_temp.ok((select count(*) from public.legajos) = 0 and (select count(*) from public.donaciones) = 0 and (select count(*) from public.legajo_documentos) = 0, 'el admin de B no ve nada de A');
 reset role; select pg_temp.como(:mostA);
-select pg_temp.ok((select count(*) from public.legajo_documentos) = 0 and (select count(*) from public.legajos) = 8, 'el mostrador no ve documentos clínicos');
+select pg_temp.ok((select count(*) from public.legajo_documentos) = 0 and (select count(*) from public.legajos) = 0 and (select count(*) from public.legajo_seguimientos) = 0, 'el mostrador no ve datos de salud (legajo, seguimientos, documentos)');
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
-select pg_temp.ok((select count(*) from public.legajos) = 8, 'fin');
+
 
 -- 7. vínculo con Drive
 select pg_temp.como(:adminA);
