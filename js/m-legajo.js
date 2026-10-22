@@ -114,7 +114,7 @@
       '<div class="row">' + (oper ? '<button class="btn pri" data-act="legajo-lote"' + (est.busy || !pend.length ? ' disabled' : '') + '>' + CM.icon('drive') + (D.conectado() ? 'Procesar ' : 'Conectar Drive y procesar ') + pend.length + ' legajo(s) pendiente(s)</button>' : '') +
       (hojaUrl ? '<a class="btn" href="' + esc(hojaUrl) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir la hoja de legajos</a>' : '') + '</div>' +
       '<p class="hint" style="margin:8px 0 0">' + (CM.driveModo && CM.driveModo() === 'servidor' ? 'Las carpetas se crean solas con la cuenta de servicio de la ONG: nadie tiene que conectar nada en ningún equipo.' :
-        '<b>En el sistema con nube</b> las carpetas se crean solas con la cuenta de servicio de la ONG y nadie conecta nada. <b>En esta demo</b> (sin servidor) la conexión es manual y dura la sesión' + (cid ? '.' : ': falta el Client ID de Google (Trazabilidad → Planilla de cultivo).')) + '</p></section>';
+        'Por ahora la conexión con Google Drive es manual: una persona de la ONG toca «Conectar» y el permiso dura la sesión de ese equipo' + (cid ? '.' : ' (falta cargar el Client ID de Google en Trazabilidad → Planilla de cultivo).') + ' Con la cuenta de servicio de la ONG las carpetas se crearán solas y nadie tendrá que conectar nada.') + '</p></section>';
   };
   CM.legajoFormsHtml = function (p) {
     var f = CM.legajoForms(p), cls = { ok: 'p-ok', rev: 'p-info', pend: 'p-warn' };

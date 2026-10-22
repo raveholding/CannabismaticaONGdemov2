@@ -3,7 +3,7 @@
    - Subir un documento o una foto (cámara del celular): va a la carpeta del legajo con nombre único; queda registrado
      quién, cuándo, tipo, huella SHA-256 y versión. Nunca se pisa ni se duplica (misma huella = ya estaba).
    - Drive por SERVIDOR (cuenta de servicio de la ONG, sistema con nube): nadie conecta nada en ningún equipo.
-     Drive por NAVEGADOR (sólo la demo, sin servidor): hace falta «Conectar Drive» en cada sesión.
+     Drive por NAVEGADOR (Client ID OAuth, mientras no haya cuenta de servicio): hace falta «Conectar Drive» en cada sesión.
    - Si Drive no está disponible, el archivo queda guardado EN ESTE EQUIPO como «pendiente de subir» y se sube solo después.
      Nunca se informa «subido» sin la respuesta de Google. Los datos clínicos no van a la auditoría (sólo legajo, tipo y huella). */
 (function (g) {
@@ -16,7 +16,7 @@
   var EJEMPLO = 'https://drive.google.com/drive/my-drive';
   var est = { busy: false };
 
-  function asegurar(db) { if (!db.legDocs) db.legDocs = []; if (db.ong && !db.ong.driveSrv) db.ong.driveSrv = { raiz: '', carpetasAppSheet: [], cuenta: '' }; return db; }
+  function asegurar(db) { if (!db.legDocs) db.legDocs = []; return db; } // no toca «ong»: se sincroniza y sólo lo escribe un administrador
   var init0 = CM.init;
   CM.init = function () { init0(); asegurar(CM.db); };
 
@@ -24,7 +24,7 @@
   CM.driveModo = function () {
     var o = CM.db.ong || {}, srv = o.driveSrv || {};
     if (CM.nubeFn && srv.raiz) return 'servidor';          // sistema con nube + cuenta de servicio configurada
-    if (o.driveClientId) return 'navegador';               // demo: conexión manual
+    if (o.driveClientId) return 'navegador';               // conexión manual por sesión (Client ID OAuth)
     return 'pendiente';
   };
   function drv() { return CM._drv; }
@@ -36,7 +36,8 @@
   CM.carpetaUrl = carpetaUrl;
 
   /* ---------- cola local (IndexedDB): el archivo no se pierde aunque Drive no esté disponible ---------- */
-  var IDB = 'vbong_docs_pend';
+  /* GitHub Pages comparte el origen entre repositorios: la base local lleva el nombre del sitio para no mezclar sistemas */
+  var IDB = CM.docsIDB = 'vbong_docs_pend' + String(g.location.pathname).replace(/\/[^\/]*$/, '').replace(/[^A-Za-z0-9_-]/g, '_');
   function idb() {
     return new Promise(function (ok, no) {
       try { var r = g.indexedDB.open(IDB, 1); r.onupgradeneeded = function () { r.result.createObjectStore('f'); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; }
@@ -106,12 +107,12 @@
   /* ---------- pantalla: carpeta del legajo ---------- */
   CM.carpetaLegajoHtml = function (p) {
     var u = carpetaUrl(p), modo = CM.driveModo(), oper = CM.can('pacientes', 'oper'), admin = CM.can('pacientes', 'admin');
-    var estado = modo === 'servidor' ? '<span class="pill p-ok">Drive automático (servidor)</span>' : modo === 'navegador' ? (drv() && drv().conectado() ? '<span class="pill p-ok">Drive conectado</span>' : '<span class="pill">Drive sin conectar (demo)</span>') : '<span class="pill p-warn">Drive pendiente de configuración</span>';
+    var estado = modo === 'servidor' ? '<span class="pill p-ok">Drive automático (servidor)</span>' : modo === 'navegador' ? (drv() && drv().conectado() ? '<span class="pill p-ok">Drive conectado</span>' : '<span class="pill">Drive sin conectar</span>') : '<span class="pill p-warn">Drive pendiente de configuración</span>';
     var h = '<section class="card drive" style="margin-top:14px"><div class="row sp"><div class="t">' + CM.icon('drive') + '<div><h3 style="margin:0">Carpeta del legajo · ' + esc(p.leg || '—') + '</h3><span class="hint">Una sola carpeta por legajo: ' + esc(CM.nombreCarpetaLegajo(p)) + '</span></div></div>' + estado + '</div>';
     if (u) {
       h += '<div class="row" style="margin-top:10px"><a class="btn pri" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir carpeta del legajo</a><button class="btn sm" data-act="copiar" data-v="' + esc(u) + '">' + CM.icon('copy') + 'Copiar enlace</button></div>';
     } else if (p.drive1 === EJEMPLO) {
-      h += '<div class="row" style="margin-top:10px"><a class="btn pri" href="' + esc(EJEMPLO) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir carpeta (enlace de ejemplo)</a></div><p class="hint">Dato de ejemplo de la demo: en el sistema real cada paciente tiene su propia carpeta, creada sola.</p>';
+      h += '<div class="row" style="margin-top:10px"><a class="btn pri" href="' + esc(EJEMPLO) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir Drive (enlace genérico)</a></div><p class="hint">Este enlace no es la carpeta propia del paciente: creala o vinculala para que sus documentos queden juntos.</p>';
     } else {
       h += '<div class="note ' + (modo === 'servidor' ? 'info' : 'warn') + '" style="margin-top:10px">' + (modo === 'servidor' ? 'La carpeta se crea sola en el servidor; aparece acá en la próxima sincronización.' : 'Todavía no tiene carpeta.') + '</div>' +
         (oper && modo !== 'servidor' ? '<div class="row"><button class="btn pri" data-act="drive-crear" data-dni="' + esc(p.dni) + '">' + CM.icon('plus') + 'Crear carpeta del legajo</button></div>' : '') +

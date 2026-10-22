@@ -34,7 +34,7 @@ with sync_playwright() as pw:
     d = ev("CM.db.legDocs.filter(x=>x.dni==='99000002')")
     chk(len(d) == 1 and d[0]['estado'] == 'pendiente' and len(d[0]['hash']) == 64 and d[0]['version'] == 1, 'sin Drive: registrado como «pendiente de subir» con huella y versión')
     chk(d[0]['nombreDrive'].startswith(ev("CM.db.pacientes['99000002'].leg") + '_REPROCANN_') and d[0]['nombreDrive'].endswith('.pdf'), 'nombre único con legajo, tipo, fecha, versión y huella')
-    guardado = ev("(async()=>{const r=indexedDB.open('vbong_docs_pend',1);const db=await new Promise(o=>r.onsuccess=()=>o(r.result));return await new Promise(o=>{const q=db.transaction('f').objectStore('f').get('%s');q.onsuccess=()=>o(q.result?q.result.size:0)})})()" % d[0]['id'])
+    guardado = ev("(async()=>{const r=indexedDB.open(CM.docsIDB,1);const db=await new Promise(o=>r.onsuccess=()=>o(r.result));return await new Promise(o=>{const q=db.transaction('f').objectStore('f').get('%s');q.onsuccess=()=>o(q.result?q.result.size:0)})})()" % d[0]['id'])
     chk(guardado > 0, 'el archivo quedó guardado en este equipo (no se pierde)')
     chk(pg.locator('text=Pendiente de subir').count() >= 1, 'la ficha lo muestra «pendiente de subir»')
     aud = ev("CM.db.audit[0].detalle")
@@ -54,7 +54,7 @@ with sync_playwright() as pw:
     pg.click('[data-act=docs-reintentar]'); pg.wait_for_timeout(900)
     d2 = ev("CM.db.legDocs.find(x=>x.dni==='99000002')")
     chk(d2['estado'] == 'subido' and d2['fileId'].startswith('ARCHIVO') and d2['url'].startswith('https://'), 'con Drive: subido, con id y enlace de Google')
-    quedo = ev("(async()=>{const r=indexedDB.open('vbong_docs_pend',1);const db=await new Promise(o=>r.onsuccess=()=>o(r.result));return await new Promise(o=>{const q=db.transaction('f').objectStore('f').get('%s');q.onsuccess=()=>o(!!q.result)})})()" % d2['id'])
+    quedo = ev("(async()=>{const r=indexedDB.open(CM.docsIDB,1);const db=await new Promise(o=>r.onsuccess=()=>o(r.result));return await new Promise(o=>{const q=db.transaction('f').objectStore('f').get('%s');q.onsuccess=()=>o(!!q.result)})})()" % d2['id'])
     chk(not quedo, 'la copia local se borra recién después de que Google confirmó')
     chk(pg.locator('section.drive >> text=En Drive').count() >= 1, 'la ficha lo muestra «En Drive» con botón Abrir')
     # segunda versión del mismo tipo con otro archivo
@@ -71,7 +71,7 @@ with sync_playwright() as pw:
     chk(pg.locator('form[data-form=doc-subir]').count() == 0, 'un HTML no se acepta')
     # demo: banner de Pacientes explica el modelo
     pg.goto(URL + '#/pacientes'); pg.wait_for_timeout(300)
-    chk(pg.locator('text=nadie conecta nada').count() >= 1, 'el banner explica: en el sistema con nube nadie conecta nada')
+    chk(pg.locator('text=nadie tendrá que conectar nada').count() >= 1, 'el banner explica la conexión manual y la cuenta de servicio')
     pg.set_viewport_size({'width': 360, 'height': 800}); pg.goto(URL + '#/paciente/99000002'); pg.wait_for_timeout(400)
     chk(ev('document.documentElement.scrollWidth') <= 362, 'ficha en 360 px sin desborde')
     chk(not errs, 'consola sin errores' + ('' if not errs else ': ' + ' | '.join(errs[:3])))
