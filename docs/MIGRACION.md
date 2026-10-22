@@ -45,15 +45,17 @@ Con todas las reglas apagadas, un solo error impide cargar y el informe dice **p
 | Crear legajo faltante | Entregas con un DNI que no está en `Legajo` ⇒ legajo «a revisar». | Completar la ficha después. |
 | Separar a revisión | Las filas imposibles (sin legajo, renglón sin genética con importe) **no se cargan** y quedan listadas; se carga el resto. | Esas entregas quedan fuera hasta corregirlas en la planilla y reimportar (no duplica). |
 | Medio «Otro (sin dato)» | `FormaPago` vacía o `MIXTO` sin desglose. | El arqueo histórico por medio de pago no es exacto para esas entregas. |
+| Lo cobrado manda | `Efectivo`/`Transferencia` no coinciden con la suma del detalle. Se registra lo cobrado (nunca se inventa dinero: un 0 explícito no genera donación). | Sin esta regla esas entregas quedan a revisión. |
 
 ## 5. Base de datos (nube)
 
 `supabase/migrations/12-migracion-sistema-anterior.sql` — aditiva e idempotente (probada dos veces seguidas).
 
-- Tablas con `comercio_id`, RLS de lectura para miembros, **sin escritura directa** (se revoca INSERT/UPDATE/DELETE): todo entra por `migra_aplicar(comercio, plan, archivo)` (`SECURITY DEFINER`, `search_path` fijo, sólo administrador, un lote a la vez por comercio).
+- Tablas con `comercio_id`, RLS y **sin escritura directa**. Todo entra por `migra_aplicar(comercio, plan, archivo, usuario)` (`SECURITY DEFINER`, `search_path` fijo con el esquema `extensions`, un lote a la vez por comercio). **Sólo la puede ejecutar la función de servidor** (`service_role`), que arma el plan leyendo Google: nadie puede mandar un plan escrito a mano por la API. La base revalida que el usuario sea administrador y lo crítico del plan (fechas, cantidades, tipos de movimiento, rutas, ciclo histórico).
+- `migra_config` (por comercio): planilla, carpeta raíz de Drive y carpetas de documentos de AppSheet, cargadas con `migra_config_guardar` (administrador). El pedido a la función nunca elige planilla ni carpeta.
 - **Sólo-agregar** (`rave_solo_agregar`): movimientos de stock, dispensaciones, detalle, donaciones, seguimientos, respuestas, arqueos y el registro de lotes. El `legajo_id` es inmutable y un legajo no se borra.
 - `dispensacion_detalles.ciclo_cultivo_id NOT NULL` con clave foránea a `ciclos_cultivo`; `donaciones.rubro_financiero_id NOT NULL` con clave foránea a `rubros_financieros`. Importes en `bigint` (centavos).
-- Los documentos clínicos sólo los leen administrador y supervisor.
+- Legajos, seguimientos, respuestas de formularios y documentos clínicos: sólo administrador y supervisor. `legajo_anterior` es único por comercio (no se duplican pacientes sin DNI al reimportar).
 - **Punto de adaptación**: la función `migra_rol()` lee `miembros(comercio_id, user_id, rol)`. **[VERIFICAR]** contra la base real del cliente antes de aplicar; si las columnas se llaman distinto, se ajusta sólo esa función.
 - **Límite declarado**: los datos personales del legajo van en la columna `pii` (jsonb) protegidos por RLS, **no cifrados de extremo a extremo** como pide 6.11. La carga desde el navegador puede cifrarlos con la llave del comercio antes de subir; la carga desde la función de servidor necesita leerlos en claro de Google. Decisión pendiente (ver «Decisiones»).
 
@@ -68,7 +70,9 @@ Con todas las reglas apagadas, un solo error impide cargar y el informe dice **p
 - `drive`: crea `Legajos/` dentro de la carpeta raíz y una carpeta por legajo `{legajo_id}_{DNI}` (o `_SD`), **idempotente por propiedad de la carpeta, no por nombre**; vincula cada documento creando un **acceso directo** al archivo original de AppSheet — **no lo mueve ni lo copia**, así la app vieja sigue funcionando. Guarda `file_id`, URL, md5 y versión. Dos archivos con el mismo ID ⇒ se informa, no se elige al azar. Procesa en tandas (`limite`, máx. 100).
 - Antes de desplegar: `sh supabase/functions/copiar-nucleo.sh` (una sola fuente: `js/migra-core.js`; una prueba falla si las copias difieren).
 
-**Secretos** (panel de Supabase → Edge Functions → Secrets; nunca por chat ni correo): `GOOGLE_SA_JSON`, `ALLOWED_ORIGINS`, opcionales `MIGRA_SHEET_ID`, `DRIVE_ROOT_ID`. «Verify JWT» apagado (la función valida la sesión).
+**Secretos** (panel de Supabase → Edge Functions → Secrets; nunca por chat ni correo): una cuenta de servicio **por comercio** en `GOOGLE_SA_JSON_<id del comercio en hexadecimal, mayúsculas, sin guiones>` y `ALLOWED_ORIGINS`; `SUPABASE_SERVICE_ROLE_KEY` la provee Supabase. «Verify JWT» apagado (la función valida la sesión).
+
+La planilla se lee **sin formato** (`UNFORMATTED_VALUE`, fechas como número de serie): el plan es idéntico venga del .xlsx o de la API. El estado existente se lee paginado. Los documentos se buscan **sólo dentro de las carpetas de AppSheet del comercio**. El vínculo con Drive lo corre sólo un administrador.
 
 **A cargo de la ONG en Google**: crear la cuenta de servicio en un proyecto de Google Cloud con las APIs de Sheets y Drive habilitadas; **compartir la planilla (lector) y la carpeta raíz (editor)** con el correo de la cuenta de servicio. Sin eso la función responde «Pendiente de configuración» o «compartí la carpeta…».
 
@@ -76,9 +80,15 @@ Con todas las reglas apagadas, un solo error impide cargar y el informe dice **p
 
 | Suite | Qué prueba | Resultado (2026-10-22) |
 |---|---|---|
-| `node t/migra.test.js` | Núcleo: números, fechas, clasificación, todo o nada, reglas, importes por medio, ciclo, stock, legajos, formularios, idempotencia, duplicados, datos no confiables | 21/21 |
-| `python3 t/e2e_migra.py` | Chromium real: lector .xlsx de 13 pestañas, estricto, reglas, migrar, ficha, XSS, caja abierta, reimportar, rollback, deshacer bloqueado y libre, permisos, 25 pantallas, 360 px, consola | 34/34 |
-| `node t/server.test.ts` | Función de servidor con Google y base simulados: 401/403/405/CORS, JWT RS256 verificado, sin secreto ⇒ 503, planilla no compartida, plan idéntico al del navegador, Drive idempotente, accesos directos, entradas maliciosas, token reutilizado | 14/14 |
-| `sh supabase/tests/correr.sh` | Postgres 16 real: migración dos veces, permisos, rollback total, carga con centavos exactos, ciclo obligatorio, stock por movimientos, idempotencia, sólo-agregar, RLS A/B, documentos clínicos, vínculo con Drive | 32/32 |
+| `node t/migra.test.js` | Núcleo: números, fechas, clasificación, todo o nada, reglas, importes por medio, ciclo, stock, legajos, formularios, idempotencia, duplicados, datos no confiables | 26/26 |
+| `python3 t/e2e_migra.py` | Chromium real: lector .xlsx de 13 pestañas, estricto, reglas, migrar, ficha, XSS, caja abierta, reimportar, rollback, deshacer bloqueado y libre, permisos, 25 pantallas, 360 px, consola | 38/38 |
+| `node t/server.test.ts` | Función de servidor con Google y base simulados: 401/403/405/CORS, JWT RS256 verificado, sin secreto ⇒ 503, planilla no compartida, plan idéntico al del navegador, Drive idempotente, accesos directos, entradas maliciosas, token reutilizado | 19/19 |
+| `sh supabase/tests/correr.sh` | Postgres 16 real: migración dos veces, permisos, rollback total, carga con centavos exactos, ciclo obligatorio, stock por movimientos, idempotencia, sólo-agregar, RLS A/B, documentos clínicos, vínculo con Drive | 36/36 |
 
 **No probado**: la cuenta de servicio y la planilla reales de Google (no hay credenciales), un proyecto Supabase real, Deno real (se probó con Node 22).
+
+## 8. Revisión independiente (2026-10-22)
+
+Un revisor independiente encontró 13 defectos; se corrigieron todos antes de publicar y se agregaron pruebas para cada uno: cuenta de servicio y planilla por comercio (antes las elegía el pedido), `digest()` fuera de `public` en Supabase, datos de salud visibles para mostrador/operador, lectura de Sheets dependiente del idioma, paginado y unicidad de `legajo_anterior`, `migra_aplicar` invocable con un plan escrito a mano, lote sin registrar cuando sólo había formularios, 0 explícito que inventaba una donación, guardado sin lugar informado como éxito, zip bomba, deshacer inexacto, claves de idempotencia que podían chocar y alertas falsas de «días sin cierre».
+
+Pendiente (decisión, no defecto): los datos personales en la tabla `legajos` quedan protegidos por RLS pero **no cifrados de extremo a extremo**.
