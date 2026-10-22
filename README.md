@@ -3,6 +3,12 @@
 Sistema completo (HTML5, funciona sin conexión en el navegador) para prueba del cliente, del sistema de gestión de la **Fundación Cannabismatica Investigación y Desarrollo** (ONG de cannabis medicinal, Salta · Ley N.º 27.350 · REPROCANN).
 Para que el equipo y el cliente la recorran y definan correcciones. **No es el sistema final**: los datos son ficticios y se guardan sólo en el navegador de quien la abre.
 
+## Novedades: migración del sistema anterior (2026-10-22)
+- **Sistema → Migración del sistema anterior** (sólo administrador): trae la planilla «CANNABISMATICA» de AppSheet descargada como .xlsx (las 13 pestañas). Se lee en el navegador; nada se envía a un servidor.
+- Validación **todo o nada** con informe por pestaña, fila y causa; reglas de migración histórica apagadas por defecto y auditadas; **Probar (sin guardar)**, migrar en una sola operación, reimportar sin duplicar y **deshacer** el último lote.
+- Para la nube: migración SQL `supabase/migrations/12-migracion-sistema-anterior.sql` y función de servidor `migra-sheets` (Google Sheets y Drive con cuenta de servicio). Detalle y pruebas en `docs/MIGRACION.md`.
+- En la demo, probalo con `t/libro_sintetico.xlsx` (datos ficticios).
+
 ## Novedades (ONGF)
 - **Banner oficial del desarrollador (VINCULAR BUSINESS)** en el ingreso, el menú público y el pie: imagen con áreas clicables y botones reales de 48 px (WhatsApp, Llamar, Correo).
 - **Proveedores e insumos**: proveedores con CUIT validado, órdenes de compra, ingreso de mercadería atómico (stock, costo, deuda y egreso de caja en una sola operación; idempotente; comprobante no duplicable), cuenta corriente de sólo-agregar y pagos con rubro obligatorio.
