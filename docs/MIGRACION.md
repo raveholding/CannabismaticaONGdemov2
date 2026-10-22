@@ -45,6 +45,7 @@ Con todas las reglas apagadas, un solo error impide cargar y el informe dice **p
 | Crear legajo faltante | Entregas con un DNI que no está en `Legajo` ⇒ legajo «a revisar». | Completar la ficha después. |
 | Separar a revisión | Las filas imposibles (sin legajo, renglón sin genética con importe) **no se cargan** y quedan listadas; se carga el resto. | Esas entregas quedan fuera hasta corregirlas en la planilla y reimportar (no duplica). |
 | Medio «Otro (sin dato)» | `FormaPago` vacía o `MIXTO` sin desglose. | El arqueo histórico por medio de pago no es exacto para esas entregas. |
+| Ajuste de apertura | El sistema anterior tiene dispensaciones antes de las entradas (stock negativo); el servidor real rechaza el stock negativo. Agrega un movimiento «Ajuste de apertura por migración» justo antes de la dispensación, visible y auditado; los datos originales no se tocan. | Ninguno: queda a la vista cuánto faltaba cargar en el sistema anterior. |
 | Lo cobrado manda | `Efectivo`/`Transferencia` no coinciden con la suma del detalle. Se registra lo cobrado (nunca se inventa dinero: un 0 explícito no genera donación). | Sin esta regla esas entregas quedan a revisión. |
 
 ## 5. Base de datos (nube)
@@ -92,3 +93,10 @@ La planilla se lee **sin formato** (`UNFORMATTED_VALUE`, fechas como número de 
 Un revisor independiente encontró 13 defectos; se corrigieron todos antes de publicar y se agregaron pruebas para cada uno: cuenta de servicio y planilla por comercio (antes las elegía el pedido), `digest()` fuera de `public` en Supabase, datos de salud visibles para mostrador/operador, lectura de Sheets dependiente del idioma, paginado y unicidad de `legajo_anterior`, `migra_aplicar` invocable con un plan escrito a mano, lote sin registrar cuando sólo había formularios, 0 explícito que inventaba una donación, guardado sin lugar informado como éxito, zip bomba, deshacer inexacto, claves de idempotencia que podían chocar y alertas falsas de «días sin cierre».
 
 Pendiente (decisión, no defecto): los datos personales en la tabla `legajos` quedan protegidos por RLS pero **no cifrados de extremo a extremo**.
+
+## 9. Sistema real del cliente (raveholding/Cannabismatica): qué falta adaptar
+
+La base real usa `tenants`, `miembros(user_id, tenant_id, rol)` y guarda todo en `registros` sincronizados con `sync_push` (no `comercios`). Por eso:
+- `12-migracion-sistema-anterior.sql` **no se aplica tal cual** a la base real (se frena sola sin tocar nada). Para el cliente, la migración debe escribir en las mismas colecciones de `registros` (una sola fuente de verdad), desde su sistema y entrando como administrador; así llega a todos los equipos.
+- `sync_push` rechaza el stock negativo: usar la regla «ajuste de apertura».
+- Las funciones `migra-sheets` y `drive-legajos` usan `migra_rol()` y `migra_config`: hay que reemplazarlas por el equivalente del sistema real (`tenant_de(auth.uid())`, rol en `miembros`) al portarlo.

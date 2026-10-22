@@ -153,3 +153,18 @@ export async function vincularDocumento(f: Fetch, token: string, carpetaId: stri
   }
   return { estado: 'vinculado', fileId: orig.id, url: orig.webViewLink || `https://drive.google.com/file/d/${orig.id}/view`, md5: orig.md5Checksum || null, version: orig.version ? Number(orig.version) : null };
 }
+
+/** Sube un archivo binario a la carpeta del legajo. Idempotente por huella SHA-256 (propiedad vbongHash): si ya está, lo devuelve. */
+export async function subirArchivo(f: Fetch, token: string, carpetaId: string, nombre: string, mime: string, bytes: Uint8Array, props: Record<string, string>): Promise<any> {
+  if (!/^[A-Za-z0-9_-]{10,100}$/.test(carpetaId)) throw new ErrorGoogle('datos', 0, 'Carpeta inválida.');
+  if (!/^[0-9a-f]{64}$/.test(props.vbongHash || '')) throw new ErrorGoogle('datos', 0, 'Huella inválida.');
+  const ya = await buscar(f, token, `${q(carpetaId)} in parents and appProperties has { key='vbongHash' and value=${q(props.vbongHash)} } and trashed = false`);
+  if (ya.length) return { ...ya[0], repetido: true };
+  const b = '----vbong' + props.vbongHash.slice(0, 16);
+  const meta = JSON.stringify({ name: nombre, parents: [carpetaId], mimeType: mime, appProperties: { vbong: '1', ...props } });
+  const enc = new TextEncoder();
+  const a = enc.encode(`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: ${mime}\r\n\r\n`), z = enc.encode(`\r\n--${b}--`);
+  const cuerpo = new Uint8Array(a.length + bytes.length + z.length); cuerpo.set(a, 0); cuerpo.set(bytes, a.length); cuerpo.set(z, a.length + bytes.length);
+  return g(f, token, 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,md5Checksum,version',
+    { method: 'POST', body: cuerpo, headers: { 'content-type': 'multipart/related; boundary=' + b } }, 'drive');
+}

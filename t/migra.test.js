@@ -74,7 +74,7 @@ t('con todas las reglas: listo, con números esperados', () => {
   assert.strictEqual(p.resumen.dispensaciones, 11);
   assert.strictEqual(p.resumen.donaciones, 10);
   assert.strictEqual(p.resumen.donadoCent, 36399998); // 37000+105000+30000+24000+16000+16000+16000+10000+60000+49999,98
-  assert.strictEqual(p.resumen.movimientos, 6); // el de «horas» se ignora
+  assert.strictEqual(p.resumen.movimientos, 6 + p.resumen.ajustes); // el de «horas» se ignora; más los ajustes de apertura
   assert.strictEqual(p.resumen.lotes, 5);       // consulta y horas no son lotes
   assert.strictEqual(p.resumen.seguimientos, 2);
   assert.strictEqual(p.resumen.documentos, 2);
@@ -210,6 +210,18 @@ t('reordenar las filas del formulario no hace reimportar respuestas viejas', () 
   const g = d['Respuestas de formulario 2']; g.splice(1, 0, g.pop());
   const p2 = M.analizar(d, { hoy: HOY, reglas: TODAS, existente: { docs: {}, legAnt: {}, migIds: ids, emails: {} } });
   assert.strictEqual(p2.enriquecer.length, 0); assert.strictEqual(p2.seg.filter(x => x.id.startsWith('F2:')).length, 0);
+});
+
+t('ajuste de apertura: el stock nunca queda negativo, el ajuste va antes de la dispensación y es idempotente', () => {
+  const p = conReglas();
+  assert.ok(p.ajustes.length >= 1);
+  p.controlStock.forEach(c => assert.ok(c.reconstruido >= 0, c.nombre + ' ' + c.reconstruido));
+  const aj = p.ajustes[0], d = p.disp.find(x => x.id === aj.ref);
+  assert.ok(d && aj.ts < d.ts && aj.tipo === 'ajuste' && aj.cant > 0 && /Ajuste de apertura por migración/.test(aj.motivo));
+  const p2 = conReglas(); assert.deepStrictEqual(p2.ajustes.map(a => [a.id, a.cant]), p.ajustes.map(a => [a.id, a.cant]));
+  const r = clon(TODAS); r.ajusteApertura = false;
+  const p3 = M.analizar(clon(L), { hoy: HOY, reglas: r });
+  assert.strictEqual(p3.ajustes.length, 0); assert.strictEqual(p3.movs.length, p.movs.length - p.ajustes.length);
 });
 
 console.log('\n' + ok + ' pruebas correctas' + (process.exitCode ? ' · HAY FALLAS' : ''));

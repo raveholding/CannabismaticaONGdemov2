@@ -79,7 +79,7 @@ with sync_playwright() as pw:
     chk(ev('CM.diasSinCaja().length') == alertas0, 'las donaciones migradas no generan alertas de «días sin cierre»')
     # ficha del paciente: documentos y marca de revisión
     pg.goto(URL + '#/paciente/99100001'); pg.wait_for_timeout(400)
-    chk(pg.locator('text=Documentos del sistema anterior').count() == 1, 'la ficha muestra los documentos del sistema anterior')
+    chk(pg.locator('text=Sistema anterior · por vincular').count() >= 1, 'la ficha muestra los documentos del sistema anterior en «Documentos y escaneos»')
     href = pg.locator('a:has-text("Buscar en Drive")').first.get_attribute('href')
     chk(href.startswith('https://drive.google.com/drive/search?q=dc000001'), 'enlace de búsqueda en Drive por el ID del documento')
     k = ev("Object.keys(CM.db.pacientes).find(k=>CM.db.pacientes[k].legAnt==='NaN')")

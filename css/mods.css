@@ -208,3 +208,6 @@ textarea.in.tall{min-height:160px}
 .pub-acc{flex:none;white-space:nowrap}
 @media (max-width:640px){.userchip .uc-n{display:none}.pub-acc{padding:0 10px;font-size:12px}}
 @media (max-width:420px){.pub-h{gap:6px}.pub-logo img{height:30px}.pub-lang button{min-width:40px;padding:0 6px}.pub-acc{padding:0 8px;font-size:11px;min-height:40px}.pub-logo{flex:0 1 auto;min-width:0;overflow:hidden}.pub-logo img{max-width:100%;object-fit:contain}.pub-nav{min-width:0;flex:1 1 0}}
+/* enlace con aspecto de texto (m-docs) */
+.btn-link{background:none;border:0;padding:6px 2px;min-height:32px;color:inherit;text-decoration:underline;cursor:pointer;font:inherit}
+.btn-link:focus-visible{outline:2px solid currentColor;outline-offset:2px}

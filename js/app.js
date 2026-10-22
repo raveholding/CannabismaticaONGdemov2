@@ -242,6 +242,7 @@
       '<div class="row" style="margin-top:6px"><button class="btn sm" data-act="copiar" data-v="' + esc(u) + '">' + CM.icon('copy') + 'Copiar enlace</button><button class="btn sm" data-act="drive-edit" data-dni="' + esc(p.dni) + '" data-w="' + w + '">Cambiar enlace</button></div></div>';
   }
   function carpetaLegajo(p) {
+    if (CM.carpetaLegajoHtml) return CM.carpetaLegajoHtml(p); // m-docs.js: una carpeta + documentos y escaneos
     var u1 = p.drive1, u2 = p.drive2, conf = !!(CM.db.ong && CM.db.ong.driveClientId), oper = CM.can('pacientes', 'oper');
     var h = '<section class="card drive" style="margin-top:14px"><div class="t">' + CM.icon('drive') + '<div><h3 style="margin:0">Carpeta del legajo · ' + esc(p.leg || '—') + '</h3><span class="hint">Documentos, imágenes, notas, recetas y estudios de este paciente. Una sola carpeta por legajo.</span></div></div>';
     if (u1 || u2) {

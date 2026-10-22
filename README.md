@@ -3,6 +3,12 @@
 Sistema completo (HTML5, funciona sin conexión en el navegador) para prueba del cliente, del sistema de gestión de la **Fundación Cannabismatica Investigación y Desarrollo** (ONG de cannabis medicinal, Salta · Ley N.º 27.350 · REPROCANN).
 Para que el equipo y el cliente la recorran y definan correcciones. **No es el sistema final**: los datos son ficticios y se guardan sólo en el navegador de quien la abre.
 
+## Novedades: carpeta del legajo y documentos (2026-10-22)
+- **Una sola carpeta por legajo** en la ficha, que se abre directo (la carpeta vieja queda como enlace chico).
+- **Documentos y escaneos**: subir PDF o fotos (o escanear con la cámara del celular) a la carpeta del legajo. Nombre único con legajo, tipo, fecha, versión y huella SHA-256; nunca se pisa ni se duplica; queda quién y cuándo. Si Drive no está disponible, el archivo queda guardado en el equipo como «pendiente de subir» y se sube solo después.
+- **Drive sin conectar nada** en el sistema con nube: función de servidor `drive-legajos` con la cuenta de servicio de la ONG (crea las carpetas y sube los archivos desde cualquier equipo). En esta demo, sin servidor, la conexión sigue siendo manual por sesión.
+- Migración: nueva regla **«ajuste de apertura por migración»** para que el stock nunca quede negativo (el servidor real lo rechaza).
+
 ## Novedades: migración del sistema anterior (2026-10-22)
 - **Sistema → Migración del sistema anterior** (sólo administrador): trae la planilla «CANNABISMATICA» de AppSheet descargada como .xlsx (las 13 pestañas). Se lee en el navegador; nada se envía a un servidor.
 - Validación **todo o nada** con informe por pestaña, fila y causa; reglas de migración histórica apagadas por defecto y auditadas; **Probar (sin guardar)**, migrar en una sola operación, reimportar sin duplicar y **deshacer** el último lote.

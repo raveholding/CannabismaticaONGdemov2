@@ -24,7 +24,8 @@
     crearLegajoFaltante: 'Crear un legajo «a revisar» para el documento de una entrega que no está en la hoja Legajo',
     separarARevision: 'Separar a «revisión» (sin cargar) las filas que no se pueden resolver y cargar el resto',
     medioSinDato: 'Registrar la donación con medio «Otro (sin dato)» cuando la forma de pago está vacía o es MIXTO sin desglose',
-    cobradoManda: 'Cuando lo cobrado (Efectivo / Transferencia) no coincide con la suma del detalle, registrar lo cobrado'
+    cobradoManda: 'Cuando lo cobrado (Efectivo / Transferencia) no coincide con la suma del detalle, registrar lo cobrado',
+    ajusteApertura: 'Cuando faltan entradas de stock en el sistema anterior, agregar un «ajuste de apertura por migración» visible antes de la dispensación (el stock nunca queda negativo)'
   };
 
   /* ---------- utilidades ---------- */
@@ -417,6 +418,33 @@
     /* renglones de detalle cuya entrega no existe */
     Object.keys(dets).forEach(function (eid) { if (!entIds[eid]) dets[eid].forEach(function (l) { P('detalle', l._fila, txt(l.id), 'La entrega «' + eid + '» no existe en la hoja Entregas.'); }); });
 
+    /* ===== 8 bis. STOCK EN ORDEN CRONOLÓGICO: nunca negativo (el servidor real lo rechaza) ===== */
+    var exStock = ex.stock || {}, porLote = {};
+    plan.movs.forEach(function (m) { (porLote[m.lote] = porLote[m.lote] || []).push({ ts: m.ts, orden: m.cant > 0 ? 0 : 1, cant: m.cant, ref: m }); });
+    plan.disp.forEach(function (d) { (porLote[d.lote] = porLote[d.lote] || []).push({ ts: d.ts, orden: 1, cant: -d.cant, ref: d }); });
+    plan.ajustes = [];
+    Object.keys(porLote).forEach(function (lote) {
+      var saldo = Math.round((exStock[lote] || 0) * 100) / 100;
+      porLote[lote].sort(function (a, b) { return a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.orden - b.orden; }).forEach(function (e) {
+        var despues = Math.round((saldo + e.cant) * 100) / 100;
+        if (despues < 0) {
+          var falta = Math.round(-despues * 100) / 100, refId = e.ref.id;
+          if (R.ajusteApertura) {
+            var t = new Date(Date.parse(e.ref.ts) - 1000).toISOString();
+            var aj = { id: 'AJ:' + refId, fecha: e.ref.fecha, ts: t, lote: lote, tipo: 'ajuste', cant: falta, ref: refId,
+              motivo: 'Ajuste de apertura por migración: faltaban ' + falta + ' en el sistema anterior antes de ' + (e.ref.entrega ? 'la entrega ' + e.ref.entrega : 'el movimiento ' + e.ref.ref), user: 'Migración', ajusteMigracion: true, mig: 1 };
+            plan.movs.push(aj); plan.ajustes.push(aj);
+            despues = 0;
+          }
+        }
+        saldo = despues;
+      });
+    });
+    if (plan.ajustes.length) {
+      var tot = {}; plan.ajustes.forEach(function (a) { tot[a.lote] = Math.round(((tot[a.lote] || 0) + a.cant) * 100) / 100; });
+      Object.keys(tot).forEach(function (l) { A('geneticas', 0, l, 'Se agregan ajustes de apertura por migración por ' + tot[l] + ' en total (faltaban entradas en el sistema anterior).'); });
+    }
+
     /* ===== 9. CONTROL DE STOCK: lo reconstruido por movimientos vs. la columna Stock de Geneticas ===== */
     plan.controlStock = Object.keys(gens).filter(function (k) { return gens[k].prod !== 'servicio'; }).map(function (k) {
       var g = gens[k], s = 0;
@@ -467,7 +495,7 @@
         lotes: plan.lotes.length, movimientos: plan.movs.length, dispensaciones: plan.disp.length, donaciones: plan.aportes.length,
         donadoCent: plan.aportes.reduce(function (s, a) { return s + a.cent; }, 0), seguimientos: plan.seg.length, documentos: plan.docs.length,
         usuarios: plan.users.length, docInst: plan.docInst.length, recursos: plan.recursos.length, arqueos: plan.arqueos.length,
-        errores: errores.length, avisos: avisos.length, revision: revision.length, omitidos: plan.omitidos.length
+        ajustes: (plan.ajustes || []).length, errores: errores.length, avisos: avisos.length, revision: revision.length, omitidos: plan.omitidos.length
       };
       return plan;
     }

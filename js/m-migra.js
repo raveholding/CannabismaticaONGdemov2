@@ -334,14 +334,8 @@
   var vPac0 = VIEWS.paciente;
   VIEWS.paciente = function (r) {
     var out = vPac0(r), p = CM.paciente(r.a); if (!p) return out;
-    var docs = (CM.db.legDocs || []).filter(function (d) { return d.dni === p.dni; });
     var extra = '';
     if (p.revisar && p.mig) extra += '<div class="note warn" style="margin-top:14px"><b>Legajo migrado para revisar:</b> ' + esc((p.notasMig || []).join('; ') || 'datos incompletos') + (p.legAnt ? ' · legajo anterior ' + esc(p.legAnt) : '') + '</div>';
-    if (docs.length) extra += '<section class="card" style="margin-top:14px"><h3 style="margin-top:0">Documentos del sistema anterior (' + docs.length + ')</h3><p class="hint">Están en la carpeta de AppSheet del Drive de la ONG. «Buscar en Drive» abre la búsqueda por su identificador (necesita la sesión de Google de la ONG).</p>' +
-      '<div class="tw"><table><thead><tr><th>Fecha</th><th>Documento</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>' + docs.map(function (d) {
-        return '<tr><td>' + esc(CM.fmtFecha(d.fecha)) + '</td><td>' + esc(d.nombre) + '<br><small class="hint">' + esc(d.ruta) + '</small></td><td>' + esc(d.tipo || d.ext || '—') + '</td><td>' + (d.driveFileId ? '<span class="pill p-ok">Vinculado</span>' : '<span class="pill p-warn">Por vincular</span>') + '</td>' +
-          '<td><a class="btn sm" target="_blank" rel="noopener noreferrer" href="https://drive.google.com/drive/search?q=' + encodeURIComponent(d.legacyId) + '">' + CM.icon('drive') + 'Buscar en Drive</a></td></tr>';
-      }).join('') + '</tbody></table></div></section>';
     return out + extra;
   };
 

@@ -98,6 +98,7 @@
   /* ---------- pantallas ---------- */
   function pillDrive() {
     var cid = !!(CM.db.ong && CM.db.ong.driveClientId);
+    if (CM.driveModo && CM.driveModo() === 'servidor') return '<span class="pill p-ok">Drive automático (servidor)</span>';
     return !cid ? '<span class="pill p-warn">Drive pendiente de configuración</span>' : D.conectado() ? '<span class="pill p-ok">Drive conectado</span>' : '<span class="pill">Drive sin conectar</span>';
   }
   CM.legajoBanner = function () {
@@ -112,7 +113,8 @@
       (est.msg ? '<div class="note ' + (est.bad ? 'bad' : 'ok') + '" role="status">' + esc(est.msg) + '</div>' : '') +
       '<div class="row">' + (oper ? '<button class="btn pri" data-act="legajo-lote"' + (est.busy || !pend.length ? ' disabled' : '') + '>' + CM.icon('drive') + (D.conectado() ? 'Procesar ' : 'Conectar Drive y procesar ') + pend.length + ' legajo(s) pendiente(s)</button>' : '') +
       (hojaUrl ? '<a class="btn" href="' + esc(hojaUrl) + '" target="_blank" rel="noopener noreferrer">' + CM.icon('link') + 'Abrir la hoja de legajos</a>' : '') + '</div>' +
-      (cid ? '' : '<p class="hint" style="margin:8px 0 0">Falta cargar el Client ID de Google de la ONG (Trazabilidad → Planilla de cultivo → Client ID de Google). Hasta entonces las carpetas se pueden vincular a mano desde cada ficha.</p>') + '</section>';
+      '<p class="hint" style="margin:8px 0 0">' + (CM.driveModo && CM.driveModo() === 'servidor' ? 'Las carpetas se crean solas con la cuenta de servicio de la ONG: nadie tiene que conectar nada en ningún equipo.' :
+        '<b>En el sistema con nube</b> las carpetas se crean solas con la cuenta de servicio de la ONG y nadie conecta nada. <b>En esta demo</b> (sin servidor) la conexión es manual y dura la sesión' + (cid ? '.' : ': falta el Client ID de Google (Trazabilidad → Planilla de cultivo).')) + '</p></section>';
   };
   CM.legajoFormsHtml = function (p) {
     var f = CM.legajoForms(p), cls = { ok: 'p-ok', rev: 'p-info', pend: 'p-warn' };
